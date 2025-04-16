@@ -1,0 +1,76 @@
+/* ModernPages.css - Modern Dark Theme with Vibrant Accents and Smooth Animations */
+.page-container {
+    padding: 4rem 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    background-color: #111;  /* Dark base */
+    color: #e0e0e0;
+    font-family: 'Inter', sans-serif;
+    animation: fadeIn 1.2s ease-out forwards;
+  }
+  
+  .section {
+    margin-bottom: 3rem;
+    padding: 2rem;
+    background-color: #1a1a1a;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    transition: transform 0.3s ease;
+  }
+  
+  .section:hover {
+    transform: translateY(-5px);
+  }
+  
+  .section-title {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    color: #ff49db; /* Vibrant pink accent */
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  
+  .section-subtitle {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+    color: #2e91ff; /* Vibrant blue accent */
+  }
+  
+  .section-content {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+  }
+  
+  a {
+    color: #2e91ff;
+    text-decoration: none;
+    transition: color 0.3s ease, transform 0.3s ease;
+  }
+  
+  a:hover {
+    color: #ff49db;
+    transform: translateY(-2px);
+  }
+  
+  pre {
+    background-color: #1a1a1a;
+    padding: 1rem;
+    border-radius: 8px;
+    overflow-x: auto;
+    color: #e0e0e0;
+    font-size: 0.9rem;
+  }
+  
+  /* Page load fade in */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
