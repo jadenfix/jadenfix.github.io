@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 
 const photos = [
     { src: '/images/adventure-snowboard.jpg', label: 'SHASTA DESCENT (7K VERTICAL DESCENT) - AVALANCHE GULCH', category: 'summit' },
-    { src: '/images/adventures/alpine-portrait.jpg', label: 'TAHOE BACKCOUNTRY - MOUNT ROSE', category: 'summit' },
+    { src: '/images/adventures/alpine-portrait.jpg', label: 'CASCADE BACKCOUNTRY - MOUNT LASSEN', category: 'summit' },
     { src: '/images/adventure-van.jpg', label: 'BUNNY FLAT BASECAMP - MOUNT SHASTA', category: 'journey' },
     { src: '/images/adventure-drive.jpg', label: 'WHITEOUT APPROACH - DONNER SUMMIT', category: 'journey' },
     { src: '/images/adventure-bivy.jpg', label: 'BIVY @ 10,000FT - MOUNT SHASTA WEST FACE', category: 'mountain' },
