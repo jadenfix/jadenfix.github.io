@@ -1,5 +1,6 @@
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
+import { useEffect } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
@@ -15,6 +16,23 @@ import OutsidePage from './pages/OutsidePage';
 
 function App() {
   const location = useLocation();
+
+  // Handle GitHub Pages SPA redirect
+  useEffect(() => {
+    const handleRedirect = () => {
+      const path = window.location.search.slice(2); // Remove '/?' prefix
+      if (path) {
+        // Replace the current URL with the proper path
+        const cleanPath = path.split('&')[0].replace(/~and~/g, '&');
+        window.history.replaceState(null, '', cleanPath);
+      }
+    };
+
+    // Check if this is a redirect from 404.html
+    if (window.location.search.startsWith('/?')) {
+      handleRedirect();
+    }
+  }, []);
 
   return (
     <div className="bg-bg-primary min-h-screen text-text-primary">
