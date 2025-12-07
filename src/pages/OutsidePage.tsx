@@ -46,7 +46,7 @@ function OutsidePage() {
             >
                 <h1 className="text-[3rem] font-bold m-0 mb-4 text-[#f7fafc] tracking-tight">Outside</h1>
                 <p className="text-lg text-[#cbd5e0] max-w-[700px] mx-auto m-0 font-light">
-                    Shasta, Sierra, Tahoe, Lassen
+                    Shasta, Tahoe, Lassen, HIGH SIERRA
                 </p>
             </motion.div>
 
