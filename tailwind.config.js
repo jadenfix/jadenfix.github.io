@@ -53,6 +53,10 @@ export default {
                 'blink': 'blink 1s step-end infinite',
                 'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
             },
+            backdropFilter: {
+                'none': 'none',
+                'blur': 'blur(20px)',
+            },
             keyframes: {
                 float: {
                     '0%, 100%': { transform: 'translate(0, 0) rotate(0deg)' },

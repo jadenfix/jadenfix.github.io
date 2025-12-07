@@ -80,6 +80,29 @@
     transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
   }
 
+  /* Enhanced Image Quality */
+  img {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+
+  /* Photo-specific enhancements for compressed phone photos */
+  .photo-enhanced {
+    filter: contrast(1.05) brightness(1.02) saturate(1.03);
+    transition: filter 0.3s ease;
+  }
+
+  .photo-enhanced:hover {
+    filter: contrast(1.08) brightness(1.05) saturate(1.08);
+  }
+
+  /* High-quality image rendering */
+  .image-high-quality {
+    image-rendering: high-quality;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+
   /* Flashy hover effects */
   a,
   button {

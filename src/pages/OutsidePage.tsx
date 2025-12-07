@@ -9,8 +9,8 @@ const photos = [
     { src: '/images/adventure-bivy.jpg', label: 'BIVY @ 10,000FT - MOUNT SHASTA WEST FACE', category: 'mountain' },
     { src: '/images/adventures/splitboard-summit.jpg', label: 'SUMMIT RIDGE - MOUNT SHASTA', category: 'mountain' },
     { src: '/images/adventures/above-the-clouds.jpg', label: 'ABOVE THE CLOUDS - DONNER LAKE BACKCOUNTRY', category: 'mountain' },
-    { src: '/images/adventures/high-sierra-descent.jpg', label: 'EXPOSED LINE - HIGH SIERRA', category: 'descent' },
-    { src: '/images/adventures/backcountry-lines.jpg', label: 'BACKCOUNTRY SOLITUDE - CASTLE PEAK', category: 'descent' },
+    { src: '/images/adventures/high-sierra-descent.jpg', label: 'BEAR CREEK SPIRE - HIGH SIERRA', category: 'descent' },
+    { src: '/images/adventures/backcountry-lines.jpg', label: 'CHILL EARLY SEASON LINES - CASTLE PEAK', category: 'descent' },
     { src: '/images/adventure-water.jpg', label: 'EASTERN SIERRA SOAK - BRIDGEPORT', category: 'reward' },
 ];
 
@@ -105,10 +105,10 @@ function OutsidePage() {
                 </motion.div>
             </div>
 
-            {/* Lightbox */}
+            {/* Enhanced Lightbox */}
             {activeImage && (
                 <motion.div
-                    className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4 cursor-pointer"
+                    className="fixed inset-0 bg-black/95 backdrop-blur-sm z-50 flex items-center justify-center p-4 cursor-pointer"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
@@ -117,13 +117,20 @@ function OutsidePage() {
                     <motion.img
                         src={activeImage}
                         alt="Full size"
-                        className="max-w-full max-h-[90vh] object-contain"
+                        className="max-w-full max-h-[90vh] object-contain shadow-2xl
+                                  filter brightness-105 contrast-105 saturate-105
+                                  image-rendering-high-quality"
                         initial={{ scale: 0.9, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ duration: 0.3 }}
+                        style={{
+                            filter: 'contrast(1.08) brightness(1.05) saturate(1.1)',
+                            imageRendering: 'high-quality'
+                        }}
                     />
                     <button
-                        className="absolute top-6 right-6 text-white/60 hover:text-white text-sm font-mono transition-colors"
+                        className="absolute top-6 right-6 text-white/70 hover:text-white text-sm font-mono transition-all duration-200
+                                  bg-black/20 hover:bg-black/40 px-3 py-1 rounded border border-white/20 hover:border-white/40"
                         onClick={() => setActiveImage(null)}
                     >
                         CLOSE
@@ -172,7 +179,14 @@ function PhotoCard({
             <img
                 src={photo.src}
                 alt={photo.label}
-                className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                loading="lazy"
+                className="absolute inset-0 w-full h-full object-cover transition-all duration-700 group-hover:scale-105
+                          filter group-hover:brightness-110 group-hover:contrast-105 group-hover:saturate-110
+                          image-rendering-auto md:image-rendering-high-quality"
+                style={{
+                    filter: 'contrast(1.05) brightness(1.02) saturate(1.03)',
+                    imageRendering: 'auto'
+                }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
