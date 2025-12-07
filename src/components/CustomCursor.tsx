@@ -2,9 +2,13 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 
 function CustomCursor() {
-    // Disable on mobile for performance - no DOM manipulation needed
+    // All hooks MUST be called before any conditional returns (React Rules of Hooks)
     const [isMobile, setIsMobile] = useState(false);
+    const [mousePosition, setMousePosition] = useState({ x: -100, y: -100 });
+    const [isPointer, setIsPointer] = useState(false);
+    const [trail, setTrail] = useState<Array<{ x: number; y: number; id: number }>>([]);
 
+    // Check for mobile device
     useEffect(() => {
         const checkMobile = () => {
             setIsMobile(window.innerWidth <= 768);
@@ -16,16 +20,11 @@ function CustomCursor() {
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
 
-    // Early return for mobile devices - prevents any performance impact
-    if (isMobile) {
-        return null;
-    }
-
-    const [mousePosition, setMousePosition] = useState({ x: -100, y: -100 });
-    const [isPointer, setIsPointer] = useState(false);
-    const [trail, setTrail] = useState<Array<{ x: number; y: number; id: number }>>([]);
-
+    // Mouse tracking effect - only runs on desktop
     useEffect(() => {
+        // Skip mouse tracking on mobile
+        if (isMobile) return;
+
         let trailId = 0;
 
         const handleMouseMove = (e: MouseEvent) => {
@@ -61,7 +60,12 @@ function CustomCursor() {
             window.removeEventListener('mousemove', handleMouseMove);
             clearInterval(interval);
         };
-    }, []);
+    }, [isMobile]);
+
+    // Early return for mobile devices - AFTER all hooks are called
+    if (isMobile) {
+        return null;
+    }
 
     return (
         <div className="custom-cursor-container">
