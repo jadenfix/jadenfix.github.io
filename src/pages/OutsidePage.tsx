@@ -119,13 +119,12 @@ function OutsidePage() {
                         alt="Full size"
                         className="max-w-full max-h-[90vh] object-contain shadow-2xl
                                   filter brightness-105 contrast-105 saturate-105
-                                  image-rendering-high-quality"
+                                  image-high-quality"
                         initial={{ scale: 0.9, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ duration: 0.3 }}
                         style={{
-                            filter: 'contrast(1.08) brightness(1.05) saturate(1.1)',
-                            imageRendering: 'high-quality'
+                            filter: 'contrast(1.08) brightness(1.05) saturate(1.1)'
                         }}
                     />
                     <button
