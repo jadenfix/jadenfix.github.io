@@ -14,6 +14,10 @@ function Starfield({ density = 200 }: StarfieldProps) {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
+        // Optimize for mobile - reduce density and complexity
+        const isMobile = window.innerWidth <= 768;
+        const effectiveDensity = isMobile ? Math.floor(density * 0.25) : density; // 75% reduction on mobile
+
         const resize = () => {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
@@ -35,7 +39,7 @@ function Starfield({ density = 200 }: StarfieldProps) {
         const stars: Star[] = [];
 
         // Create stars with depth (z-axis for parallax)
-        for (let i = 0; i < density; i++) {
+        for (let i = 0; i < effectiveDensity; i++) {
             stars.push({
                 x: Math.random() * canvas.width - canvas.width / 2,
                 y: Math.random() * canvas.height - canvas.height / 2,
@@ -52,11 +56,15 @@ function Starfield({ density = 200 }: StarfieldProps) {
         let mouseX = 0;
         let mouseY = 0;
 
-        const handleMouseMove = (e: MouseEvent) => {
+        // Skip mouse tracking on mobile for performance
+        const handleMouseMove = !isMobile ? (e: MouseEvent) => {
             mouseX = (e.clientX - canvas.width / 2) * 0.01;
             mouseY = (e.clientY - canvas.height / 2) * 0.01;
-        };
-        window.addEventListener('mousemove', handleMouseMove);
+        } : undefined;
+
+        if (handleMouseMove) {
+            window.addEventListener('mousemove', handleMouseMove);
+        }
 
         const animate = () => {
             ctx.fillStyle = 'rgba(5, 10, 20, 0.1)';
@@ -142,7 +150,9 @@ function Starfield({ density = 200 }: StarfieldProps) {
 
         return () => {
             window.removeEventListener('resize', resize);
-            window.removeEventListener('mousemove', handleMouseMove);
+            if (handleMouseMove) {
+                window.removeEventListener('mousemove', handleMouseMove);
+            }
         };
     }, [density]);
 

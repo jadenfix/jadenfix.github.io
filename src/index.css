@@ -135,7 +135,7 @@
   }
 }
 
-/* Mobile: hide custom cursor */
+/* Mobile: hide custom cursor and performance optimizations */
 @media (max-width: 768px) {
   .custom-cursor-container {
     display: none !important;
@@ -143,5 +143,49 @@
 
   body {
     cursor: auto !important;
+  }
+
+  /* Mobile performance optimizations */
+  * {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    -webkit-perspective: 1000px;
+    perspective: 1000px;
+  }
+
+  /* Optimize animated elements */
+  .motion-element,
+  [class*="motion-"] {
+    will-change: transform, opacity;
+    contain: layout style paint;
+  }
+
+  /* Reduce motion for performance */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* Optimize images on mobile */
+  img {
+    image-rendering: auto;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
+
+  /* Optimize scrolling */
+  html {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: auto; /* Disable smooth scroll on mobile for performance */
+  }
+
+  /* Reduce layout thrashing */
+  .grid {
+    contain: layout style;
   }
 }

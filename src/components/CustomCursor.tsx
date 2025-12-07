@@ -2,6 +2,25 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 
 function CustomCursor() {
+    // Disable on mobile for performance - no DOM manipulation needed
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth <= 768);
+        };
+
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    // Early return for mobile devices - prevents any performance impact
+    if (isMobile) {
+        return null;
+    }
+
     const [mousePosition, setMousePosition] = useState({ x: -100, y: -100 });
     const [isPointer, setIsPointer] = useState(false);
     const [trail, setTrail] = useState<Array<{ x: number; y: number; id: number }>>([]);

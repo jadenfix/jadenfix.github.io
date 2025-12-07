@@ -1,5 +1,5 @@
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 const photos = [
     { src: '/images/adventure-snowboard.jpg', label: 'SHASTA DESCENT (7K VERTICAL DESCENT) - AVALANCHE GULCH', category: 'summit' },
@@ -22,10 +22,19 @@ const quotes = [
 
 function OutsidePage() {
     const [activeImage, setActiveImage] = useState<string | null>(null);
+    const [isMobile, setIsMobile] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const { scrollYProgress } = useScroll({ target: containerRef });
 
-    const headerY = useTransform(scrollYProgress, [0, 0.3], [0, -50]);
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth <= 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    // Reduce scroll-based animations on mobile for performance
+    const headerY = useTransform(scrollYProgress, [0, 0.3], [0, isMobile ? -25 : -50]);
     const headerOpacity = useTransform(scrollYProgress, [0, 0.2], [1, 0]);
 
     return (
@@ -46,10 +55,10 @@ function OutsidePage() {
                 {/* Section 1: Hero */}
                 <motion.div
                     className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3"
-                    initial={{ opacity: 0, y: 40 }}
+                    initial={{ opacity: 0, y: isMobile ? 20 : 40 }}
                     whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: "-100px" }}
-                    transition={{ duration: 0.8 }}
+                    viewport={{ once: true, margin: isMobile ? "-50px" : "-100px" }}
+                    transition={{ duration: isMobile ? 0.4 : 0.8 }}
                 >
                     <PhotoCard photo={photos[0]} aspectRatio="aspect-[4/3]" onClick={() => setActiveImage(photos[0].src)} />
                     <PhotoCard photo={photos[1]} aspectRatio="aspect-[4/3]" onClick={() => setActiveImage(photos[1].src)} />
@@ -61,10 +70,10 @@ function OutsidePage() {
                 {/* Section 2: Journey */}
                 <motion.div
                     className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3"
-                    initial={{ opacity: 0, y: 40 }}
+                    initial={{ opacity: 0, y: isMobile ? 20 : 40 }}
                     whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: "-100px" }}
-                    transition={{ duration: 0.8, delay: 0.1 }}
+                    viewport={{ once: true, margin: isMobile ? "-50px" : "-100px" }}
+                    transition={{ duration: isMobile ? 0.4 : 0.8, delay: isMobile ? 0 : 0.1 }}
                 >
                     <div className="md:col-span-2">
                         <PhotoCard photo={photos[2]} aspectRatio="aspect-[16/9]" onClick={() => setActiveImage(photos[2].src)} />
@@ -78,10 +87,10 @@ function OutsidePage() {
                 {/* Section 3: Mountain */}
                 <motion.div
                     className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3"
-                    initial={{ opacity: 0, y: 40 }}
+                    initial={{ opacity: 0, y: isMobile ? 20 : 40 }}
                     whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: "-100px" }}
-                    transition={{ duration: 0.8, delay: 0.2 }}
+                    viewport={{ once: true, margin: isMobile ? "-50px" : "-100px" }}
+                    transition={{ duration: isMobile ? 0.4 : 0.8, delay: isMobile ? 0 : 0.2 }}
                 >
                     <PhotoCard photo={photos[4]} aspectRatio="aspect-[3/4]" onClick={() => setActiveImage(photos[4].src)} />
                     <PhotoCard photo={photos[5]} aspectRatio="aspect-[3/4]" onClick={() => setActiveImage(photos[5].src)} />
@@ -94,10 +103,10 @@ function OutsidePage() {
                 {/* Section 4: Rewards */}
                 <motion.div
                     className="grid grid-cols-1 md:grid-cols-3 gap-3"
-                    initial={{ opacity: 0, y: 40 }}
+                    initial={{ opacity: 0, y: isMobile ? 20 : 40 }}
                     whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: "-100px" }}
-                    transition={{ duration: 0.8, delay: 0.3 }}
+                    viewport={{ once: true, margin: isMobile ? "-50px" : "-100px" }}
+                    transition={{ duration: isMobile ? 0.4 : 0.8, delay: isMobile ? 0 : 0.3 }}
                 >
                     <PhotoCard photo={photos[7]} aspectRatio="aspect-[4/3]" onClick={() => setActiveImage(photos[7].src)} />
                     <PhotoCard photo={photos[8]} aspectRatio="aspect-[4/3]" onClick={() => setActiveImage(photos[8].src)} />
