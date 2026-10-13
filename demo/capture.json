@@ -1,0 +1,46 @@
+{
+  "sourceCommit": "06db8c2332966edbcdac96e5cb2d0b9a698073d5",
+  "sourceTree": "41bd81edd04cae07a8d4ed24011d5c7e99a14e17",
+  "capturedAt": "2026-10-13T07:37:49.552Z",
+  "scope": "Actual production-build browser capture using checked-in portfolio data.",
+  "routeRecovery": "/projects -> /#/projects",
+  "interactions": [
+    "opened the stale /projects deep link",
+    "searched for Financial C++",
+    "filtered AI & Agents",
+    "navigated to About and back to Projects"
+  ],
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "claimsExcluded": [
+    "linked repositories were not exercised by this capture",
+    "external project deployments were not exercised by this capture"
+  ],
+  "probe": {
+    "programs": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 960,
+        "height": 540,
+        "pix_fmt": "yuv420p"
+      }
+    ],
+    "format": {
+      "duration": "10.500000"
+    }
+  },
+  "artifacts": {
+    "portfolio-demo.mp4": {
+      "sha256": "bd5b2afea0513a2ae7d03567ff639ac460826bf0039cabf4d32e3b02cc814d05"
+    },
+    "portfolio-demo.gif": {
+      "sha256": "49d8a1e992ef7a9f07ae34b37b52647c096a54f59b3cee9a3a79e722d8efd317"
+    },
+    "portfolio-demo-poster.png": {
+      "sha256": "0190c909d7c90d82ac1d9c811bb63e7206dc1ced9923a5fbcb1b2b5f03e1281e"
+    }
+  }
+}
