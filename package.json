@@ -7,6 +7,11 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test": "node --test tests/*.test.js",
+    "test:e2e": "playwright test",
+    "test:all": "npm run lint && npm test && npm run build && npm run test:e2e",
+    "demo:capture": "node scripts/capture-portfolio-demo.mjs",
+    "demo:verify": "node scripts/verify-demo.mjs",
     "preview": "vite preview",
     "sync:projects": "node scripts/sync-projects.js"
   },
@@ -23,6 +28,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.56.1",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
