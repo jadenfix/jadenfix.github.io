@@ -4,6 +4,14 @@
 
 A modern, interactive personal portfolio showcasing AI/ML work, projects, and the SF Bay Area lifestyle. Built with cutting-edge web technologies featuring smooth animations, custom cursor interactions, and a dark theme inspired by GitHub's design system.
 
+## 🎬 Actual Browser Demo
+
+![Portfolio project discovery and navigation demo](demo/portfolio-demo.gif)
+
+[Watch the H.264 MP4](demo/portfolio-demo.mp4)
+
+This 10.5-second capture runs the production build at source commit `06db8c2332966edbcdac96e5cb2d0b9a698073d5`. It exercises legacy `/projects` recovery, project search and filtering, and navigation between Projects and About. The capture uses the checked-in portfolio catalog; it does **not** verify the linked repositories or their external deployments. Reproduce it with `npm run demo:capture` and validate the source manifest and fully decoded media with `npm run demo:verify`.
+
 ## ✨ What This Website Shows
 
 - **🏠 Home**: Epic hero section with Golden Gate Bridge silhouette, starfield background, and Bay Area tech messaging
@@ -145,12 +153,12 @@ export const CustomCursor = () => {
 
 **App.tsx** - Main routing:
 ```tsx
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import { CustomCursor, SmoothScroll, Header, Footer } from './components';
 
 function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <CustomCursor />
       <SmoothScroll />
       <Header />
@@ -161,7 +169,7 @@ function App() {
         {/* ... other routes */}
       </Routes>
       <Footer />
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 ```
@@ -239,6 +247,8 @@ npm run dev          # Start development server
 npm run build        # Build for production
 npm run preview      # Preview production build
 npm run lint         # Run ESLint
+npm test             # Run legacy-route regression tests
+npm run test:e2e     # Run production desktop/mobile browser coverage
 ```
 
 ---
@@ -249,6 +259,6 @@ Check out the live site: **[jadenfix.github.io](https://jadenfix.github.io)**
 
 ## Hosting and live project links
 
-Use Node.js 22 and `npm ci && npm run build`. Hash routes (for example `/#/projects`) work on static GitHub Pages, including refreshes and shared links.
+Use Node.js 22 and `npm ci && npm run build`. Hash routes (for example `/#/projects`) work on static GitHub Pages, including refreshes and shared links. Legacy path links such as `/projects` are recovered by the small `public/404.html` entry point and redirected to the equivalent hash route. Keep this redirect aligned with `HashRouter`; the application itself does not rewrite URLs.
 
 The current cards are curated in `src/data/projects.ts`; the optional `demo` field adds a separate live frontend link. Only add deployed, working URLs; GitHub remains the source link. The existing `npm run sync:projects` importer also accepts `Demo: https://...` lines in `projects.md`, but regenerates the entire catalog: review that diff before adopting it.
