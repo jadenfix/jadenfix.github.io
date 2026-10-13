@@ -16,8 +16,8 @@ function ProjectsPage() {
 
         if (searchTerm) {
             result = result.filter(p =>
-                p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                p.description.toLowerCase().includes(searchTerm.toLowerCase())
+                p.name.toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
+                p.description.toLowerCase().includes(searchTerm.trim().toLowerCase())
             );
         }
 
@@ -51,6 +51,7 @@ function ProjectsPage() {
                         <input
                             type="text"
                             placeholder="Search projects..."
+                            aria-label="Search projects"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="relative w-full px-4 py-3 bg-bg-secondary border border-border-color text-text-primary placeholder-text-muted focus:outline-none focus:border-accent-primary transition-colors duration-200 clip-corner-br"
@@ -72,6 +73,7 @@ function ProjectsPage() {
                                 ? 'bg-accent-primary/10 border-accent-primary text-accent-primary'
                                 : 'bg-bg-secondary/80 border-border-color text-[#a0aec0] hover:border-accent-primary/40 hover:text-[#f7fafc]'
                                 }`}
+                            aria-pressed={activeFilter === cat.id}
                             onClick={() => setActiveFilter(cat.id)}
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}

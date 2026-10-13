@@ -246,3 +246,9 @@ npm run lint         # Run ESLint
 **Built by [Jaden Fix](https://github.com/jadenfix)**
 
 Check out the live site: **[jadenfix.github.io](https://jadenfix.github.io)**
+
+## Hosting and live project links
+
+Use Node.js 22 and `npm ci && npm run build`. Hash routes (for example `/#/projects`) work on static GitHub Pages, including refreshes and shared links.
+
+The current cards are curated in `src/data/projects.ts`; the optional `demo` field adds a separate live frontend link. Only add deployed, working URLs; GitHub remains the source link. The existing `npm run sync:projects` importer also accepts `Demo: https://...` lines in `projects.md`, but regenerates the entire catalog: review that diff before adopting it.

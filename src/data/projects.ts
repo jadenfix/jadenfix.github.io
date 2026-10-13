@@ -24,6 +24,7 @@ export interface Project {
     category: string;
     language: string;
     github: string;
+    demo?: string;
     featured: boolean;
 }
 

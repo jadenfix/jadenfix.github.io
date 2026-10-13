@@ -216,7 +216,7 @@ function HomePage() {
                                         <FaLinkedin size={24} /> LinkedIn
                                     </motion.a>
                                     <motion.a
-                                        href="/projects"
+                                        href="#/projects"
                                         className="px-8 py-4 font-bold text-lg text-accent-primary no-underline border border-accent-primary/40 clip-corner-br"
                                         style={{
                                             background: 'rgba(99, 179, 237, 0.1)',
