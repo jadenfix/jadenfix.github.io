@@ -78,6 +78,12 @@ function parseProjectsMd(content) {
                     currentProject.category = 'tools';
                 }
             }
+        } else if (line.startsWith('Demo:')) {
+            if (currentProject) {
+                const demo = line.slice(5).trim();
+                if (!/^https:\/\//.test(demo)) throw new Error('Demo must be an https URL');
+                currentProject.demo = demo;
+            }
         } else if (line.startsWith('Summary:')) {
             if (currentProject) {
                 currentProject.description = line.replace('Summary:', '').trim();
@@ -113,6 +119,7 @@ export interface Project {
     category: string;
     language: string;
     github: string;
+    demo?: string;
     featured: boolean;
 }
 

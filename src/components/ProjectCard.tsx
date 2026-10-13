@@ -14,8 +14,10 @@ function ProjectCard({ project, index }: ProjectCardProps) {
     const tiltRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (tiltRef.current) {
-            VanillaTilt.init(tiltRef.current, {
+        const element = tiltRef.current;
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        if (element) {
+            VanillaTilt.init(element, {
                 max: 5,
                 speed: 400,
                 glare: true,
@@ -26,10 +28,7 @@ function ProjectCard({ project, index }: ProjectCardProps) {
         }
 
         return () => {
-            if (tiltRef.current) {
-                // @ts-ignore - VanillaTilt adds destroy method
-                tiltRef.current.vanillaTilt?.destroy();
-            }
+            (element as (HTMLDivElement & { vanillaTilt?: { destroy(): void } }) | null)?.vanillaTilt?.destroy();
         };
     }, []);
 
@@ -90,20 +89,24 @@ function ProjectCard({ project, index }: ProjectCardProps) {
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             title="View on GitHub"
+                            aria-label={`View ${project.name} on GitHub`}
                         >
                             <FaGithub className="w-4 h-4" />
                         </motion.a>
+                        {project.demo && (
                         <motion.a
-                            href={project.github}
+                            href={project.demo}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center justify-center w-8 h-8 text-text-secondary transition-all duration-200 hover:text-accent-primary hover:bg-accent-primary/10 clip-corner-br border border-transparent hover:border-accent-primary/30"
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            title="Open Project"
+                            title={`Try ${project.name}`}
+                            aria-label={`Try ${project.name}`}
                         >
                             <FaExternalLinkAlt className="w-3 h-3" />
                         </motion.a>
+                        )}
                     </div>
                 </div>
             </div>

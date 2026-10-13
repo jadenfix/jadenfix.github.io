@@ -36,7 +36,7 @@ function Header() {
 
                 <nav className={`md:flex md:items-center md:gap-1 ${isMobileMenuOpen
                     ? 'fixed top-0 right-0 w-[280px] h-screen bg-bg-secondary flex flex-col items-start px-8 pt-20 pb-8 gap-2 border-l border-border-color'
-                    : 'fixed top-0 -right-full w-[280px] h-screen bg-bg-secondary flex flex-col items-start px-8 pt-20 pb-8 gap-2 border-l border-border-color md:static md:w-auto md:h-auto md:flex-row md:p-0 md:border-0'
+                    : 'hidden md:static md:w-auto md:h-auto md:flex-row md:p-0 md:border-0'
                     } transition-all duration-300`}>
                     {['Home', 'Projects', 'Tech Stack', 'About', 'Outside', 'Contact'].map((item) => {
                         const path = item === 'Home' ? '/' : `/${item.toLowerCase().replace(' ', '-')}`;

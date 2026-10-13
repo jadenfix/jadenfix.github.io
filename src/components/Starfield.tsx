@@ -52,7 +52,6 @@ function Starfield({ density = 200 }: StarfieldProps) {
             });
         }
 
-        let animationTime = 0;
         let mouseX = 0;
         let mouseY = 0;
 
@@ -70,7 +69,6 @@ function Starfield({ density = 200 }: StarfieldProps) {
             ctx.fillStyle = 'rgba(5, 10, 20, 0.1)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            animationTime += 0.016;
 
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;

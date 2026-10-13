@@ -13,7 +13,6 @@ function ScrambleText({ text, className = '' }: ScrambleTextProps) {
 
     useEffect(() => {
         if (!isHovered) {
-            setDisplayText(text);
             return;
         }
 
@@ -48,7 +47,7 @@ function ScrambleText({ text, className = '' }: ScrambleTextProps) {
             onMouseLeave={() => setIsHovered(false)}
             style={{ display: 'inline-block' }}
         >
-            {displayText}
+            {isHovered ? displayText : text}
         </span>
     );
 }
