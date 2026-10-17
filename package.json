@@ -7,8 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "sync:projects": "node scripts/sync-projects.js"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@studio-freight/lenis": "^1.0.42",
