@@ -1,0 +1,67 @@
+{
+  "machine": "Apple M4 (10 cores: 4 performance + 6 efficiency, 16 GB RAM, macOS 26.6.2)",
+  "commit": "ed0961e",
+  "measuredOn": "2026-10-18",
+  "rows": [
+    {
+      "metric": "network",
+      "arrha": "4 validator processes on one laptop, localhost",
+      "bitcoin": "global, public, proof of work",
+      "solana": "global, public, proof of stake"
+    },
+    {
+      "metric": "block / slot time",
+      "arrha": "500 ms slots; a block in 49% of slots, one finalized block every 1.03 s on average (idle)",
+      "bitcoin": "10 min average by design [btc-wiki]; 9.7 min measured over 4,443 blocks, 2026-09-18 to 10-18 [mempool]",
+      "solana": "~400 ms nominal [sol-docs]; 217 ms measured over the last 20,000 slots on 2026-10-18 [sol-rpc]"
+    },
+    {
+      "metric": "time to finality",
+      "arrha": "submit to final p50 1.6 s, p95 4.6 s, p99 6.2 s at 100 tx/s (4,000 transfers)",
+      "bitcoin": "probabilistic; 6 confirmations (~60 min) is the common convention [btc-wiki]",
+      "solana": "'finalized' trails 'confirmed' by about 31 slots, ~6.7 s measured 2026-10-18 [sol-rpc]; docs say 32 slots, ~13 s at 400 ms slots [sol-docs]",
+      "note": "Arrha finality is deterministic once a block and its next-slot child both carry quorum certificates; Bitcoin's is probabilistic."
+    },
+    {
+      "metric": "sustained throughput",
+      "arrha": "~400 tx/s simple transfers, ~100 tx/s WASM contract calls (every tx finalized; p99 8.4 s and 12.1 s)",
+      "bitcoin": "8.1 tx/s average, 6.2 to 10.4 by day, 2026-09-18 to 10-14 [btc-txs]",
+      "solana": "1,887 non-vote tx/s (4,955 including votes), hour average on 2026-10-18 [sol-rpc]; 5.2 billion non-vote txs in August 2026 [sol-aug]",
+      "note": "Arrha's ceiling is its block gas limit (476 transfers or 100 calls per block) times how often a block finalizes, on one machine with no real users."
+    },
+    {
+      "metric": "fault shown",
+      "arrha": "1 of 4 validators killed for 30.6 s: 29 blocks still finalized; it rejoined and finalized again 1.8 s after restart",
+      "bitcoin": "-",
+      "solana": "-"
+    }
+  ],
+  "sweeps": [
+    { "mode": "transfer", "offered": 100, "finalizedTps": 116.7, "p50": 1570, "p95": 4627, "p99": 6223, "lost": 0 },
+    { "mode": "transfer", "offered": 200, "finalizedTps": 236.7, "p50": 2130, "p95": 6564, "p99": 7763, "lost": 0 },
+    { "mode": "transfer", "offered": 300, "finalizedTps": 300.1, "p50": 1721, "p95": 3760, "p99": 4294, "lost": 0 },
+    { "mode": "transfer", "offered": 400, "finalizedTps": 390.1, "p50": 2049, "p95": 5903, "p99": 8376, "lost": 0 },
+    { "mode": "transfer", "offered": 500, "finalizedTps": 428.4, "p50": 3170, "p95": 24539, "p99": 34709, "lost": 0 },
+    { "mode": "contract", "offered": 25, "finalizedTps": 27.9, "p50": 1786, "p95": 4522, "p99": 5322, "lost": 0 },
+    { "mode": "contract", "offered": 50, "finalizedTps": 48.3, "p50": 2672, "p95": 5828, "p99": 6330, "lost": 0 },
+    { "mode": "contract", "offered": 100, "finalizedTps": 98.3, "p50": 2622, "p95": 8704, "p99": 12098, "lost": 0 },
+    { "mode": "contract", "offered": 150, "finalizedTps": 123.3, "p50": 3663, "p95": 30134, "p99": 35630, "lost": 0 }
+  ],
+  "bls": { "single": 2111, "batch": 12324, "aggregate": 8415, "count": 1024 },
+  "sources": {
+    "btc-wiki": { "label": "Bitcoin Wiki, Confirmation", "url": "https://en.bitcoin.it/wiki/Confirmation", "accessed": "2026-10-18" },
+    "mempool": { "label": "mempool.space API, blocks at 2026-09-18 and 2026-10-18 (heights 967,564 to 972,007)", "url": "https://mempool.space/docs/api/rest#get-block-timestamp", "accessed": "2026-10-18" },
+    "btc-txs": { "label": "Blockchain.com, confirmed transactions per day (30 days)", "url": "https://www.blockchain.com/explorer/charts/n-transactions", "accessed": "2026-10-18" },
+    "sol-docs": { "label": "solana.com docs, transaction confirmation and expiration", "url": "https://solana.com/docs/core/transactions/confirmation", "accessed": "2026-10-18" },
+    "sol-rpc": { "label": "Solana mainnet-beta public RPC: getRecentPerformanceSamples, getBlockTime, getSlot by commitment", "url": "https://solana.com/docs/rpc/http/getrecentperformancesamples", "accessed": "2026-10-18" },
+    "sol-aug": { "label": "Solana Compass, 5.2 billion non-vote transactions in August (citing CryptoBriefing), 2026-09-01", "url": "https://solanacompass.com/news/solana-processes-52-billion-non-vote-transactions-in-august-surpassing-all-other-l1s-and-l2s-combined", "accessed": "2026-10-18" }
+  },
+  "caveats": [
+    "Shows: the code runs as a real multi-process BFT network, finalizes deterministically, executes WASM contracts, survives one crashed validator and lets it rejoin.",
+    "Does not show: performance over a WAN, with hundreds of validators, under adversarial or Byzantine load, or with real users. Network latency here is loopback, close to zero.",
+    "All four validators share one CPU, so they compete with each other and with the load generator. Separate machines could be faster or slower; this run does not tell you which.",
+    "Throughput is capped by the protocol's block gas limit and by VRF leader election leaving about half the slots without a finalized block, not by the hardware.",
+    "Bitcoin and Solana figures describe global production networks under real demand. A higher number on a laptop devnet does not mean Arrha is faster than Solana in production.",
+    "Arrha's 2-chain commit rule and implementation have not been audited or formally checked against the TLA+ spec in the repo."
+  ]
+}

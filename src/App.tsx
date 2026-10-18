@@ -39,6 +39,7 @@ const SpacewindLab = demo('SpacewindLab');
 const ReplayDemo = demo('ReplayDemo');
 const MarketMakerDemo = demo('MarketMakerDemo');
 const InftyThinkDemo = demo('InftyThinkDemo');
+const ChainDemo = demo('ChainDemo');
 const SimulationDemo = demo('SimulationDemo');
 
 // ------------------------------------------------------------------ research
@@ -536,6 +537,19 @@ const projects: { id: string; name: string; tag: string; href: string; body: str
       reveals: 'with realistic queue rules, quoting at the touch loses for everyone, so both policies quote wide and wait for spikes; the agent is statistically tied with the tuned baseline, clearly better than the old TD3, and not yet a winner.',
     },
     h: 820,
+  },
+  {
+    id: 'arrha',
+    name: 'Arrha',
+    tag: 'blockchain · rust',
+    href: 'https://github.com/jadenfix/arrha',
+    body: 'A layer-1 for agent payments: VRF leader election, BLS quorum certificates, two-chain finality and WASM contracts. When I picked it back up, a real four-node network finalized nothing, so I fixed key reloading, quorum certificates, a shared slot clock, fork handling and the mempool, then added an end-to-end test that runs in CI. Below is a recording of that network with one validator killed and brought back, plus measured numbers next to Bitcoin and Solana.',
+    Comp: ChainDemo,
+    note: {
+      how: 'watch the replay, or jump to the moment validator 3 is killed and restarted; switch to compare for the numbers and their sources.',
+      reveals: 'three of four validators keep finalizing while one is down, and it catches up within two seconds of coming back. On one laptop it sustains about 400 transfers a second, with median finality between 1.6 and 2 s up to that rate. That is a localhost devnet, not a global network.',
+    },
+    h: 620,
   },
   {
     id: 'inftythink',

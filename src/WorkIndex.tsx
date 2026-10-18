@@ -132,6 +132,20 @@ const frames: Record<string, Frame> = {
     if (Math.floor(t * 1.5) % 4 === 0) put(g, mid + 2, 0, '✦');
     return join(g);
   },
+  // blocks chaining left to right, each one locking in when its child is certified
+  chain: (t) => {
+    const g = blank();
+    const head = Math.floor(t * 2) % 9;
+    for (let i = 0; i < 9; i++) {
+      const x = 1 + i * 3;
+      const final = i < head - 1;
+      put(g, x, 1, i <= head ? (final ? '■' : '□') : '·');
+      if (i < 8) put(g, x + 1, 1, i < head ? '─' : ' ');
+      if (i === head) put(g, x, 0, '▾');
+      if (final && i % 3 === 0) put(g, x, 2, '✓');
+    }
+    return join(g);
+  },
   // segments folding into short summaries while vanilla keeps growing
   infty: (t) => {
     const p = (t * 4) % 26;
@@ -154,7 +168,8 @@ const rows: Row[] = [
   { key: 'simulation', n: '07', name: 'simulation-theory', kind: 'theory', line: 'can you tell if a world is simulated?', href: '#simulation-theory' },
   { key: 'replay', n: '08', name: 'ReplayKit', kind: 'debugger', line: 'fork an agent run, replay downstream', href: '#replaykit' },
   { key: 'mm', n: '09', name: 'DRL4MM', kind: 'reinforcement learning', line: 'trained on BTC, ETH, LTC; tested on SOL', href: '#drl4mm' },
-  { key: 'infty', n: '10', name: 'InftyThink', kind: 'reasoning', line: 'bounded-context reasoning, real traces', href: '#inftythink' },
+  { key: 'chain', n: '10', name: 'Arrha', kind: 'blockchain', line: 'a 4-validator chain that survives losing one', href: '#arrha' },
+  { key: 'infty', n: '11', name: 'InftyThink', kind: 'reasoning', line: 'bounded-context reasoning, real traces', href: '#inftythink' },
 ];
 
 function IndexRow({ r, i, hot, setHot, pre }: { r: Row; i: number; hot: boolean; setHot: (k: string | null) => void; pre: (el: HTMLPreElement | null) => void }) {

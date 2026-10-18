@@ -378,7 +378,7 @@ function Diagram({
   const corner = 7;
 
   return (
-    <svg width={geom.w} height={H} viewBox={`0 0 ${geom.w} ${H}`} className="block" role="img" aria-label="state diagram of the four-gate task, with the current rollout moving through it">
+    <svg width={geom.w} height={H} viewBox={`0 0 ${geom.w} ${H}`} className="block h-auto max-w-full" role="img" aria-label="state diagram of the four-gate task, with the current rollout moving through it">
       <defs>
         <filter id={`${id}g`} x="-200%" y="-200%" width="500%" height="500%">
           <feGaussianBlur stdDeviation="3" />
