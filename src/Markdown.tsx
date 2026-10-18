@@ -86,7 +86,7 @@ export function Markdown({ source, compact = false }: { source: string; compact?
       }
       const [head, ...body] = rows;
       // numbers line up on the right, words on the left
-      const num = head.map((_, c) => body.length > 0 && body.every((r) => /^[−\-+$]?[\d.,]+[%x]?$/.test(r[c] ?? '')));
+      const num = head.map((_, c) => body.length > 0 && body.every((r) => !r[c] || /^[−\-+]?\$?[\d.,]+[%xk]?$/.test(r[c])));
       const td = (c: number) => `px-3 py-1.5 ${num[c] ? 'text-right tabular-nums' : 'text-left'}`;
       blocks.push(
         <div key={k++} className="overflow-x-auto border border-line">

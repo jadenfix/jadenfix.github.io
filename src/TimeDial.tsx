@@ -132,7 +132,7 @@ export default function TimeDial() {
           height={H}
           viewBox={`0 0 ${W} ${H}`}
           aria-hidden
-          className="block overflow-visible"
+          className="block h-auto w-[96px] overflow-visible sm:w-[120px]"
         >
           <defs>
             <radialGradient id="sun-glow">
@@ -225,11 +225,11 @@ export default function TimeDial() {
             </g>
           )}
         </svg>
-        <span className="flex w-[74px] shrink-0 flex-col leading-[1.15]">
+        <span className="flex w-[36px] shrink-0 flex-col leading-[1.15] sm:w-[74px]">
           <span className="tabular-nums text-bone">{clock}</span>
           <span
             aria-hidden
-            className="text-[10px] lowercase tracking-[0.1em] text-phos/90"
+            className="hidden text-[10px] lowercase tracking-[0.1em] text-phos/90 sm:block"
           >
             {name}
           </span>
