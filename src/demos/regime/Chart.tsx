@@ -187,7 +187,7 @@ export default function Chart({ data, w, h, mode, win, onWin, hover, onHover, vi
         className="block select-none"
         role="img"
         aria-label={`Real S&P 500 price on a log scale, ${data.start.slice(0, 4)} to ${data.end.slice(0, 4)}, with ${data.spans.length} dated bear markets shaded; below it the ${mode} bear-regime probability from ${data.regime.start.slice(0, 4)} and the one-month out-of-sample forecast.`}
-        style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace' }}
+        style={{ fontFamily: '"IBM Plex Mono", ui-monospace, monospace' }}
       >
         <defs>
           <clipPath id={`clip-${uid}`}>

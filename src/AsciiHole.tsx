@@ -109,7 +109,7 @@ export default function AsciiHole({ className = '', reveal }: { className?: stri
         wrap.current!.style.height = `${shown}px`;
         const ctx = ctxs[0];
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        ctx.font = `${(cellW / 0.6).toFixed(2)}px "JetBrains Mono", ui-monospace, monospace`;
+        ctx.font = `${(cellW / 0.6).toFixed(2)}px "IBM Plex Mono", ui-monospace, monospace`;
         ctx.textBaseline = 'top';
         ctx.textAlign = 'left';
       };

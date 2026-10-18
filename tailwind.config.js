@@ -12,8 +12,8 @@ export default {
       ),
       fontFamily: {
         serif: ['"Instrument Serif"', 'Georgia', 'serif'],
-        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
-        sans: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+        mono: ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+        sans: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],
       },
       maxWidth: { page: '1120px' },
       // the motion system's curves (see src/motion.ts); every transition-* utility defaults to crisp

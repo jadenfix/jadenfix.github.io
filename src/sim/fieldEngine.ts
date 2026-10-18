@@ -56,7 +56,7 @@ export function startField(cv: HTMLCanvasElement, mode: FieldMode, strength = 1)
     cv.width = Math.round(r.width * dpr);
     cv.height = Math.round(r.height * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.font = `${CELL_FONT}px ui-monospace, "JetBrains Mono", Menlo, monospace`;
+    ctx.font = `${CELL_FONT}px "IBM Plex Mono", ui-monospace, Menlo, monospace`;
     ctx.textBaseline = 'top';
     cw = ctx.measureText('M').width;
     ch = CELL_FONT * 1.18;

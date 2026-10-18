@@ -231,7 +231,7 @@ function Header({ pageKey }: { pageKey: string }) {
           {/* between md and lg the nav needs the room: the dial stays, the clock steps out */}
           <span className="hidden whitespace-nowrap sm:inline md:hidden lg:inline" title="Local time in San Francisco">
             <span className="mr-1.5 inline-block h-1.5 w-1.5 translate-y-[-1px] rounded-full bg-phos/80" />
-            sf <Readout key={time} value={time} />
+            sf <Readout key={time} value={time} className="inline-block min-w-[8ch]" />
           </span>
           <TimeDial />
           <button

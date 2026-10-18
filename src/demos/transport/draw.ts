@@ -13,7 +13,7 @@ const ease = (v: number) => {
   const x = clamp01(v);
   return x * x * (3 - 2 * x);
 };
-const FONT = (px: number) => `${px}px "JetBrains Mono", ui-monospace, monospace`;
+const FONT = (px: number) => `${px}px "IBM Plex Mono", ui-monospace, monospace`;
 
 /** seconds on the loop; the story plays once, holds, fades, and starts over */
 export const TL = {

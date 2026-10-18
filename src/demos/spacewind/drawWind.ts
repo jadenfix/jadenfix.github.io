@@ -101,7 +101,7 @@ export function drawWind(
     ctx.lineTo(cx + (r0 + len) * Math.cos(a), cy - (r0 + len) * Math.sin(a));
   }
   ctx.stroke();
-  ctx.font = '10px "JetBrains Mono", ui-monospace, monospace';
+  ctx.font = '10px "IBM Plex Mono", ui-monospace, monospace';
   ctx.fillStyle = 'rgba(141,136,124,0.75)';
   ctx.textBaseline = 'middle';
   for (const au of [0.5, 1, 1.5]) {

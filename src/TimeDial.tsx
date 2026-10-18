@@ -2,14 +2,15 @@ import { useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { clockAt, minutesAt, partOfDay, positionAt } from "./palette";
 import { setTime, useTime } from "./theme";
 
-// The theme control: the sun's path from noon to midnight, drawn as a dotted
-// arc over a horizon. The sun is the thumb. Drag it down past the horizon and
-// the page follows it into the night. Above the horizon it glows; below, it is
-// a small ring, the sun you can't see. A role="slider" with the usual keys.
+// The theme control: the sun's path from noon to midnight, drawn as an arc
+// over a horizon. The thumb is the sun, its rays turning as it travels; drag it
+// down past the horizon and it becomes the moon, and the page follows it into
+// the night. Everything here has a fixed size, so moving it never nudges the
+// header. A role="slider" with the usual keys.
 
-const W = 112; // drawn width of the path, px
-const H = 28;
-const PAD = 7;
+const W = 120; // drawn width of the path, px
+const H = 32;
+const PAD = 10;
 const AMP = 9; // how high the sun climbs above the horizon, px
 const STEP = 10; // minutes per arrow press
 
@@ -28,6 +29,8 @@ const path = (from: number, to: number) => {
 const DAY = path(0, 0.5);
 const NIGHT = path(0.5, 1);
 const TICKS = [0, 0.25, 0.5, 0.75, 1];
+const R = 4.5; // the sun's disc
+const RAYS = Array.from({ length: 8 }, (_, i) => (i * Math.PI) / 4);
 
 export default function TimeDial() {
   const p = useTime();
@@ -142,6 +145,10 @@ export default function TimeDial() {
                 style={{ stopColor: "rgb(var(--c-phos))", stopOpacity: 0 }}
               />
             </radialGradient>
+            <mask id="moon-bite" maskContentUnits="userSpaceOnUse" x="-20" y="-20" width="40" height="40" maskUnits="userSpaceOnUse">
+              <rect x={-20} y={-20} width={40} height={40} fill="white" />
+              <circle cx={3.6} cy={-2} r={R + 0.3} fill="black" />
+            </mask>
           </defs>
           {/* the horizon, with a tick at each stop of the day */}
           <line
@@ -195,26 +202,30 @@ export default function TimeDial() {
             opacity={0.35 + 0.65 * glow}
           />
           {up ? (
-            <circle
-              cx={sx}
-              cy={sy}
-              r={active ? 5.5 : 4.5}
-              className="fill-phos"
-            />
+            // the sun: a disc and eight rays that lengthen with its altitude and turn as it moves
+            <g transform={`translate(${sx.toFixed(2)} ${sy.toFixed(2)}) rotate(${(p * 540).toFixed(1)})`}>
+              {RAYS.map((a) => (
+                <line
+                  key={a}
+                  x1={Math.cos(a) * (R + 2)}
+                  y1={Math.sin(a) * (R + 2)}
+                  x2={Math.cos(a) * (R + 3.5 + 2.5 * glow + (active ? 1 : 0))}
+                  y2={Math.sin(a) * (R + 3.5 + 2.5 * glow + (active ? 1 : 0))}
+                  className="stroke-phos"
+                  strokeWidth={1.3}
+                  strokeLinecap="round"
+                />
+              ))}
+              <circle r={R + (active ? 0.8 : 0)} className="fill-phos" />
+            </g>
           ) : (
-            <>
-              <circle
-                cx={sx}
-                cy={sy}
-                r={active ? 5.5 : 4.5}
-                className="fill-void stroke-phos"
-                strokeWidth={1.4}
-              />
-              <circle cx={sx} cy={sy} r={1.6} className="fill-phos" />
-            </>
+            // the moon: the same disc with a bite out of it
+            <g transform={`translate(${sx.toFixed(2)} ${sy.toFixed(2)}) rotate(-20)`}>
+              <circle r={R + 1 + (active ? 0.8 : 0)} className="fill-phos" mask="url(#moon-bite)" />
+            </g>
           )}
         </svg>
-        <span className="flex flex-col leading-[1.15]">
+        <span className="flex w-[74px] shrink-0 flex-col leading-[1.15]">
           <span className="tabular-nums text-bone">{clock}</span>
           <span
             aria-hidden

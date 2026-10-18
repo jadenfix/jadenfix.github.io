@@ -124,7 +124,7 @@
 .reveal[data-in] { opacity: 1; transform: none; }
 
 /* a glyph drawn over a letter that is still laid out, invisibly, beneath it */
-.decode-glyph { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.42em; line-height: 1; font-style: normal; }
+.decode-glyph { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 0.42em; line-height: 1; font-style: normal; }
 
 /* section rules: a phosphor print head draws the dots across */
 .rule { position: relative; overflow: hidden; }

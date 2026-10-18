@@ -240,11 +240,11 @@ export function Replay({ session, visible, reduce }: { session: Session; visible
                   <rect key={i} x={cx - bw / 2 + (i * bw) / 4 + 1} y={y + 36} width={Math.max(1, bw / 4 - 2)} height={2} fill={i < votes ? PHOS : LINE} />
                 ))}
                 {w >= 420 || b.slot % 2 === 0 ? (
-                  <text x={cx} y={y - 4} textAnchor="middle" fontSize={9} fill={FAINT} fontFamily="JetBrains Mono, monospace">
+                  <text x={cx} y={y - 4} textAnchor="middle" fontSize={9} fill={FAINT} fontFamily="IBM Plex Mono, monospace">
                     {b.slot}
                   </text>
                 ) : null}
-                <text x={cx} y={y + 50} textAnchor="middle" fontSize={8.5} fill={final ? DIM : FAINT} fontFamily="JetBrains Mono, monospace">
+                <text x={cx} y={y + 50} textAnchor="middle" fontSize={8.5} fill={final ? DIM : FAINT} fontFamily="IBM Plex Mono, monospace">
                   v{b.proposer}
                 </text>
               </g>
@@ -339,7 +339,7 @@ export function Replay({ session, visible, reduce }: { session: Session; visible
           {session.down.map((d) => (
             <g key={d.from}>
               <rect x={((d.from - lo) / (hi - lo)) * w} y={0} width={((d.to - d.from) / (hi - lo)) * w} height={TRACK_H} fill={RED} opacity={0.08} />
-              <text x={((d.from - lo) / (hi - lo)) * w + 4} y={10} fontSize={9} fill={RED} fontFamily="JetBrains Mono, monospace">
+              <text x={((d.from - lo) / (hi - lo)) * w + 4} y={10} fontSize={9} fill={RED} fontFamily="IBM Plex Mono, monospace">
                 v{d.validator} down
               </text>
             </g>
