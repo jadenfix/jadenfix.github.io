@@ -9,6 +9,16 @@
     <meta property="og:description" content="Agents, RL, and the systems they run on." />
     <meta property="og:image" content="https://jadenfix.github.io/media/blackhole-poster.jpg" />
     <meta name="theme-color" content="#0b0b0a" />
+    <script>
+      // the remembered time of day's background, before anything paints (src/theme.ts sets the rest)
+      try {
+        var bg = localStorage.getItem('jf:time-bg');
+        if (/^#[0-9a-f]{6}$/i.test(bg)) {
+          document.documentElement.style.background = bg;
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', bg);
+        }
+      } catch (e) {}
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

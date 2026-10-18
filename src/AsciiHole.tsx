@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react';
+import type { RGB } from './palette';
+import { getPalette, onPaint } from './theme';
 
 // A black hole drawn in characters. Geometry for every character cell (which
 // rays fall in, where they cross the disk, their redshift, and where escaping
@@ -20,12 +22,13 @@ function hash(x: number, y: number) {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
-function diskColour(temp: number, a: number) {
-  // deep ember to warm white, like a cooling filament
+function diskColour(temp: number, a: number, cool: RGB, hot: RGB) {
+  // at midnight, deep ember to warm white, like a cooling filament; by day the
+  // same ramp runs from the accent into dark ink, so the disk prints on paper
   const t = Math.min(1, Math.max(0, temp));
-  const r = 200 + 55 * t;
-  const g = 92 + 150 * t;
-  const b = 40 + 175 * t * t;
+  const r = cool[0] + (hot[0] - cool[0]) * t;
+  const g = cool[1] + (hot[1] - cool[1]) * t;
+  const b = cool[2] + (hot[2] - cool[2]) * t * t;
   return `rgba(${r | 0},${g | 0},${b | 0},${a.toFixed(2)})`;
 }
 
@@ -169,6 +172,8 @@ export default function AsciiHole({ className = '', reveal }: { className?: stri
       const draw = (time: number) => {
         const t = time / 1000;
         const ctx = ctxs[0];
+        // colours follow the time of day (src/theme.ts), read once a frame
+        const { diskCool, diskHot, star } = getPalette().colors;
         ctx.clearRect(0, 0, cols * cellW, rows * lineH);
         ptr.mass += ((ptr.inside ? 1 : 0) - ptr.mass) * 0.12;
         updateLens(t);
@@ -198,7 +203,7 @@ export default function AsciiHole({ className = '', reveal }: { className?: stri
             }
             const idx = Math.min(DISK_RAMP.length - 1, Math.floor(Math.pow(inten, 0.5) * 12));
             if (idx > 0) {
-              ctx.fillStyle = diskColour(temp - 0.2, Math.min(1, 0.5 + inten * 0.8));
+              ctx.fillStyle = diskColour(temp - 0.2, Math.min(1, 0.5 + inten * 0.8), diskCool, diskHot);
               ctx.fillText(DISK_RAMP[idx], x, y);
             }
             if (trans < 0.3) continue;
@@ -238,7 +243,7 @@ export default function AsciiHole({ className = '', reveal }: { className?: stri
               const tw = 0.7 + 0.3 * Math.sin(t * (0.6 + mag * 1.4) + hsh * 900);
               const b = (1 - d2 / 0.22) * (0.35 + 0.65 * mag) * tw;
               const c = STAR_CHARS[Math.min(3, Math.floor(b * 3.2))];
-              ctx.fillStyle = `rgba(196,204,222,${(0.25 + 0.6 * b).toFixed(2)})`;
+              ctx.fillStyle = `rgba(${star[0]},${star[1]},${star[2]},${(0.25 + 0.6 * b).toFixed(2)})`;
               ctx.fillText(c, x, y);
             }
           }
@@ -258,12 +263,18 @@ export default function AsciiHole({ className = '', reveal }: { className?: stri
         }
         raf = requestAnimationFrame(loop);
       };
-      if (reduce) draw(8000);
-      else raf = requestAnimationFrame(loop);
+      // still under reduced motion: one frame, redrawn when the time of day changes
+      let offPaint = () => {};
+      // (at 10 s the reveal lens's hint sweep is over, so no frozen half-open lens)
+      if (reduce) {
+        draw(10000);
+        offPaint = onPaint(() => draw(10000));
+      } else raf = requestAnimationFrame(loop);
 
       const io = new IntersectionObserver(([e]) => (visible = e.isIntersecting));
       io.observe(wrap.current!);
       cleanup = () => {
+        offPaint();
         ro.disconnect();
         io.disconnect();
         window.removeEventListener('pointermove', onMove);
@@ -281,7 +292,8 @@ export default function AsciiHole({ className = '', reveal }: { className?: stri
 
   return (
     <div ref={wrap} className={`relative w-full select-none overflow-hidden ${className}`} aria-label="A black hole drawn in characters, its disk slowly turning." role="img">
-      <canvas ref={glow} className="absolute top-0 opacity-70 blur-[6px]" aria-hidden />
+      {/* the bloom: a glow at night, by day only a little ink bleeding into the paper */}
+      <canvas ref={glow} className="absolute top-0 blur-[6px]" style={{ opacity: 'calc(0.7 - 0.45 * var(--ink))' }} aria-hidden />
       <canvas ref={main} className="absolute top-0" aria-hidden />
       {reveal && (
         <img
@@ -293,7 +305,13 @@ export default function AsciiHole({ className = '', reveal }: { className?: stri
           onLoad={(e) => (e.currentTarget.style.visibility = 'visible')}
           onError={(e) => (e.currentTarget.style.display = 'none')}
           className="pointer-events-none invisible absolute top-0 select-none"
-          style={{ maskImage: 'radial-gradient(circle 0px at 0 0, #000, transparent)', WebkitMaskImage: 'radial-gradient(circle 0px at 0 0, #000, transparent)' }}
+          style={{
+            maskImage: 'radial-gradient(circle 0px at 0 0, #000, transparent)',
+            WebkitMaskImage: 'radial-gradient(circle 0px at 0 0, #000, transparent)',
+            // by day the ray-traced view is printed too: a negative, its hues turned back
+            filter: 'invert(var(--ink)) hue-rotate(calc(var(--ink) * 180deg))',
+            mixBlendMode: 'var(--blend)' as never,
+          }}
         />
       )}
     </div>

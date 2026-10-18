@@ -6,6 +6,7 @@ import Cursor from './Cursor';
 import { Markdown } from './Markdown';
 import Memories from './Memories';
 import RustyPlayer from './RustyPlayer';
+import TimeDial from './TimeDial';
 import WorkIndex from './WorkIndex';
 import { commits, links, roles, tempera, upstream } from './content';
 import { useScramble, useSfTime } from './hooks';
@@ -210,7 +211,7 @@ function Header({ pageKey }: { pageKey: string }) {
   return (
     <header className={`sticky top-0 z-40 transition-colors duration-500 ${scrolled ? 'border-b border-line bg-void/85 backdrop-blur-md' : 'border-b border-transparent'}`}>
       <div className="page flex h-14 items-center justify-between gap-4 text-[12px]">
-        <a href="#top" className="flex items-center gap-2 text-bone">
+        <a href="#top" className="flex shrink-0 items-center gap-2 whitespace-nowrap text-bone">
           <span className="inline-block h-[11px] w-[6px] animate-blink bg-phos" aria-hidden />
           jaden fix
         </a>
@@ -220,11 +221,13 @@ function Header({ pageKey }: { pageKey: string }) {
           <NavLink href="#experience" label="experience" active={active === 'experience'} />
           <NavLink href="#/blog" label="writing" active={active === 'writing' || pageKey === 'blog' || pageKey.startsWith('post:')} />
         </nav>
-        <div className="flex items-center gap-4 text-faint">
-          <span className="hidden sm:inline" title="Local time in San Francisco">
+        <div className="flex items-center gap-4 text-faint sm:gap-5">
+          {/* between md and lg the nav needs the room: the dial stays, the clock steps out */}
+          <span className="hidden whitespace-nowrap sm:inline md:hidden lg:inline" title="Local time in San Francisco">
             <span className="mr-1.5 inline-block h-1.5 w-1.5 translate-y-[-1px] rounded-full bg-phos/80" />
             sf <Readout key={time} value={time} />
           </span>
+          <TimeDial />
           <button
             onClick={() => window.dispatchEvent(new Event('open-command-bar'))}
             className="border border-line px-1.5 py-px text-[11px] text-dim transition-colors hover:border-phos hover:text-phos"
@@ -248,11 +251,14 @@ function Footer() {
   );
 }
 
+/** A live demo, on its own patch of midnight (see .screen in index.css): the demos draw in dark palettes at any time of day. */
 function Demo({ Comp, h = 420 }: { Comp: Lazy; h?: number }) {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center border border-line text-[11px] text-faint" style={{ height: h }}>loading…</div>}>
-      <Comp />
-    </Suspense>
+    <div className="screen">
+      <Suspense fallback={<div className="flex items-center justify-center border border-line text-[11px] text-faint" style={{ height: h }}>loading…</div>}>
+        <Comp />
+      </Suspense>
+    </div>
   );
 }
 
@@ -265,14 +271,26 @@ function Hero() {
   return (
     <section id="top" className="page pt-6 sm:pt-10">
       {/* the sky sits a layer back: as you scroll it drifts slower than the page, shrinks a touch and dims */}
-      <div ref={sky} className="will-change-transform">
+      {/* (its own background: the ray-traced views blend into the page colour, inside this layer) */}
+      <div ref={sky} className="bg-void will-change-transform">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: DUR.develop, ease: EASE.out }} className="relative">
         <div className={`transition-opacity duration-1000 ${view === 'ascii' ? 'opacity-100' : 'pointer-events-none opacity-0'}`}>
           <AsciiHole reveal="/media/hero-smooth.webp" />
         </div>
         {view === 'render' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: DUR.slow, ease: EASE.out }} className="absolute inset-0 flex items-center justify-center">
-            <img src="/media/blackhole.webp" alt="The same black hole, ray-traced at full resolution." className="max-h-full w-full object-contain" />
+            <img
+              src="/media/blackhole.webp"
+              alt="The same black hole, ray-traced at full resolution."
+              className="max-h-full w-full object-contain"
+              style={{
+                filter: 'invert(var(--ink)) hue-rotate(calc(var(--ink) * 180deg))',
+                mixBlendMode: 'var(--blend)' as never,
+                // feathered, so the frame's edge never shows against a coloured page
+                maskImage: 'radial-gradient(ellipse 50% 50% at 50% 50%, #000 70%, transparent 100%)',
+                WebkitMaskImage: 'radial-gradient(ellipse 50% 50% at 50% 50%, #000 70%, transparent 100%)',
+              }}
+            />
           </motion.div>
         )}
         <div className="absolute bottom-1 right-0 flex gap-3 text-[11px]">
@@ -343,7 +361,9 @@ function Rusty() {
           how="let it play or pick a session (arrow keys work)."
           reveals="real recorded sessions of the agent fixing bugs, running goals to verified completion, and compacting context."
         />
-        <RustyPlayer auto />
+        <div className="screen screen-flush">
+          <RustyPlayer auto />
+        </div>
       </div>
     </div>
   );

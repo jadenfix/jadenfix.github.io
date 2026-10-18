@@ -19,6 +19,7 @@ export default function Cursor() {
     let rx = x;
     let ry = y;
     let hot = false;
+    let onScreen = false;
     let down = false;
     let raf = 0;
     let last = 0;
@@ -40,6 +41,13 @@ export default function Cursor() {
       if (isHot !== hot) {
         hot = isHot;
         ring.current!.dataset.hot = hot ? '1' : '';
+      }
+      // over a dark instrument screen the pointer takes midnight's colours, so it stays visible by day
+      const isScreen = !!t?.closest('.screen');
+      if (isScreen !== onScreen) {
+        onScreen = isScreen;
+        dot.current!.classList.toggle('screen-vars', onScreen);
+        ring.current!.classList.toggle('screen-vars', onScreen);
       }
       wake();
     };

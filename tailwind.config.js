@@ -5,16 +5,11 @@ export default {
   future: { hoverOnlyWhenSupported: true },
   theme: {
     extend: {
-      colors: {
-        void: '#0b0b0a',
-        panel: '#121211',
-        line: '#252421',
-        bone: '#dcd6c8',
-        dim: '#8d887c',
-        faint: '#58554e',
-        phos: '#e8a96a',
-        ice: '#c4ccde',
-      },
+      // the palette follows the time of day (src/palette.ts, written to :root by
+      // src/theme.ts) as RGB triplets, so opacity modifiers like bg-phos/10 work
+      colors: Object.fromEntries(
+        ['void', 'panel', 'line', 'bone', 'dim', 'faint', 'phos', 'ice'].map((k) => [k, `rgb(var(--c-${k}) / <alpha-value>)`]),
+      ),
       fontFamily: {
         serif: ['"Instrument Serif"', 'Georgia', 'serif'],
         mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],

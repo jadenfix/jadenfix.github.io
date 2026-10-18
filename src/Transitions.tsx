@@ -72,7 +72,7 @@ export function RouteVeil({ pageKey }: { pageKey: string }) {
       <div ref={panel} className="absolute inset-0 origin-bottom bg-void" />
       <div ref={edge} className="absolute inset-x-0 top-0">
         <pre ref={row} className="absolute bottom-[1px] left-0 m-0 w-full overflow-hidden whitespace-pre text-[11px] leading-[1.15] text-phos/70" />
-        <div className="h-px bg-phos shadow-[0_0_12px_2px_rgba(232,169,106,0.45)]" />
+        <div className="h-px bg-phos shadow-[0_0_12px_2px_rgb(var(--c-phos)/0.45)]" />
       </div>
     </div>
   );

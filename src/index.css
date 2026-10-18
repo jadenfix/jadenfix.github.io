@@ -14,15 +14,83 @@
     --dur-slow: 1100ms;
     --dur-develop: 2600ms;
   }
-  html { scroll-behavior: smooth; scroll-padding-top: 80px; background: #0b0b0a; }
+  /* the time of day, as colour. These are midnight, the default and the
+     no-script fallback; src/theme.ts rewrites them as the dial moves
+     (palette in src/palette.ts). RGB triplets, for Tailwind's opacity modifiers. */
+  :root {
+    --c-void: 11 11 10;
+    --c-panel: 18 18 17;
+    --c-line: 37 36 33;
+    --c-bone: 220 214 200;
+    --c-dim: 141 136 124;
+    --c-faint: 100 97 90;
+    --c-phos: 232 169 106;
+    --c-ice: 196 204 222;
+    --c-shadow: 0 0 0;
+    --c-edge: 255 255 255;
+    --c-scan: 255 255 255;
+    --c-sel: 232 169 106;
+    --c-sel-ink: 11 11 10;
+    --c-disk-cool: 200 92 40;
+    --c-disk-hot: 255 242 215;
+    --c-star: 196 204 222;
+    --grain: 0.05;
+    --scan-a: 0.018;
+    --shadow-a: 0.8;
+    --edge-a: 0;
+    --screen-shadow-a: 0;
+    --ink: 0;
+    --blend: screen;
+    color-scheme: dark;
+  }
+  html {
+    scroll-behavior: smooth; scroll-padding-top: 80px; background: rgb(var(--c-void));
+    scrollbar-color: rgb(var(--c-faint) / 0.7) rgb(var(--c-void));
+  }
   body {
     @apply bg-void font-mono text-bone antialiased;
     font-size: 14px;
     font-feature-settings: 'zero' 0, 'calt' 1;
   }
-  ::selection { background: #e8a96a; color: #0b0b0a; }
-  :focus-visible { outline: 1px solid rgba(232, 169, 106, 0.85); outline-offset: 3px; }
+  ::selection { background: rgb(var(--c-sel)); color: rgb(var(--c-sel-ink)); }
+  :focus-visible { outline: 1px solid rgb(var(--c-phos) / 0.85); outline-offset: 3px; }
 }
+
+/* Instrument screens. The demos draw with dark palettes of their own, so
+   whatever the time of day, each one sits on a little patch of midnight: the
+   variables are pinned back to the black stop inside it (keep in sync with
+   'midnight' in src/palette.ts). At midnight the frame is invisible; by day
+   it is a dark screen set into the page, with a hairline and a soft shadow. */
+.screen-vars, .screen {
+  --c-void: 11 11 10;
+  --c-panel: 18 18 17;
+  --c-line: 37 36 33;
+  --c-bone: 220 214 200;
+  --c-dim: 141 136 124;
+  --c-faint: 100 97 90;
+  --c-phos: 232 169 106;
+  --c-ice: 196 204 222;
+  --c-sel: 232 169 106;
+  --c-sel-ink: 11 11 10;
+  --ink: 0;
+  color-scheme: dark;
+}
+.screen {
+  --screen-pad: 10px;
+  position: relative;
+  margin-inline: calc(var(--screen-pad) * -1);
+  padding: var(--screen-pad);
+  border-radius: 2px;
+  background: rgb(var(--c-void));
+  color: rgb(var(--c-bone));
+  box-shadow:
+    0 0 0 1px rgb(var(--c-edge) / var(--edge-a)),
+    0 28px 60px -32px rgb(var(--c-shadow) / var(--screen-shadow-a)),
+    0 6px 16px -10px rgb(var(--c-shadow) / calc(var(--screen-shadow-a) * 0.6));
+}
+@media (min-width: 640px) { .screen { --screen-pad: 18px; } }
+/* already framed (the rusty player): a frame without the inset */
+.screen.screen-flush { margin-inline: 0; padding: 0; }
 
 @layer components {
   .page { @apply mx-auto w-full max-w-page px-4 sm:px-8; }
@@ -34,7 +102,7 @@
   }
   /* a faint amber fill wipes in from the left, the arrow leans toward where it goes */
   a.chip::before {
-    content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(232, 169, 106, 0.09);
+    content: ''; position: absolute; inset: 0; z-index: -1; background: rgb(var(--c-phos) / 0.09);
     transform: scaleX(0); transform-origin: left; transition: transform 260ms var(--ease-crisp);
   }
   .chip-arrow { display: inline-block; transition: transform var(--dur-micro) var(--ease-crisp), color var(--dur-micro) var(--ease-crisp); }
@@ -43,9 +111,9 @@
   @media (hover: hover) and (pointer: fine) {
     a.chip:hover { @apply border-phos text-phos; }
     a.chip:hover::before { transform: scaleX(1); }
-    a.chip:hover .chip-arrow { transform: translate3d(1.5px, -1.5px, 0); color: #e8a96a; }
+    a.chip:hover .chip-arrow { transform: translate3d(1.5px, -1.5px, 0); color: rgb(var(--c-phos)); }
   }
-  .dots { background-image: radial-gradient(circle, #34322e 1px, transparent 1.2px); background-size: 8px 8px; background-repeat: repeat-x; background-position: left center; height: 8px; }
+  .dots { background-image: radial-gradient(circle, rgb(var(--c-faint) / 0.5) 1px, transparent 1.2px); background-size: 8px 8px; background-repeat: repeat-x; background-position: left center; height: 8px; }
 }
 
 /* ---------------------------------------------------------------- motion */
@@ -62,7 +130,7 @@
 .rule { position: relative; overflow: hidden; }
 .rule::after {
   content: ''; position: absolute; top: 0; bottom: 0; left: -14px; right: 0;
-  background: linear-gradient(to right, transparent 0, rgba(232, 169, 106, 0.16) 4px 11px, rgba(232, 169, 106, 0.95) 11px 13px, #0b0b0a 13px);
+  background: linear-gradient(to right, transparent 0, rgb(var(--c-phos) / 0.16) 4px 11px, rgb(var(--c-phos) / 0.95) 11px 13px, rgb(var(--c-void)) 13px);
   transform: translate3d(0, 0, 0); transition: transform 1.7s var(--ease-sweep);
 }
 .rule[data-in]::after { transform: translate3d(101%, 0, 0); }
@@ -70,8 +138,8 @@
 /* reading progress: dashes, like a line of hyphens, with a lit head */
 .progress-dash {
   background:
-    linear-gradient(to left, #e8a96a 0 10px, transparent 10px),
-    repeating-linear-gradient(to right, rgba(232, 169, 106, 0.55) 0 4px, transparent 4px 7px);
+    linear-gradient(to left, rgb(var(--c-phos)) 0 10px, transparent 10px),
+    repeating-linear-gradient(to right, rgb(var(--c-phos) / 0.55) 0 4px, transparent 4px 7px);
 }
 
 /* index rows: an amber tick rises at the left edge, the name leans in */
@@ -96,11 +164,11 @@
 .grain::before, .grain::after { content: ''; position: fixed; inset: -50%; pointer-events: none; z-index: 60; }
 .grain::before {
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.55'/></svg>");
-  opacity: 0.05;
+  opacity: var(--grain);
 }
 .grain::after {
   inset: 0;
-  background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.018) 0 1px, transparent 1px 3px);
+  background: repeating-linear-gradient(to bottom, rgb(var(--c-scan) / var(--scan-a)) 0 1px, transparent 1px 3px);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -115,11 +183,11 @@
 html.custom-cursor, html.custom-cursor * { cursor: none !important; }
 html.custom-cursor input[type='range'] { cursor: none !important; }
 .cursor-dot, .cursor-ring { position: fixed; left: 0; top: 0; pointer-events: none; z-index: 70; opacity: 0; transition: opacity 0.3s; }
-.cursor-dot { width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; background: #e8a96a; box-shadow: 0 0 10px 1px rgba(232,169,106,0.55); border-radius: 50%; }
+.cursor-dot { width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; background: rgb(var(--c-phos)); box-shadow: 0 0 10px 1px rgb(var(--c-phos) / 0.55); border-radius: 50%; }
 .cursor-ring { width: 30px; height: 30px; margin: -15px 0 0 -15px; }
-.cursor-ring > span { position: absolute; top: 0; bottom: 0; width: 50%; border: 1px solid rgba(220,214,200,0.35); transition: all 0.35s var(--ease-out); }
+.cursor-ring > span { position: absolute; top: 0; bottom: 0; width: 50%; border: 1px solid rgb(var(--c-bone) / 0.35); transition: all 0.35s var(--ease-out); }
 .cursor-ring > span:first-child { left: 0; border-right: 0; border-radius: 15px 0 0 15px; }
 .cursor-ring > span:last-child { right: 0; border-left: 0; border-radius: 0 15px 15px 0; }
-.cursor-ring[data-hot='1'] > span { border-color: rgba(232,169,106,0.9); border-radius: 0; width: 7px; top: -2px; bottom: -2px; }
+.cursor-ring[data-hot='1'] > span { border-color: rgb(var(--c-phos) / 0.9); border-radius: 0; width: 7px; top: -2px; bottom: -2px; }
 .cursor-ring[data-hot='1'] > span:first-child { left: -8px; }
 .cursor-ring[data-hot='1'] > span:last-child { right: -8px; }

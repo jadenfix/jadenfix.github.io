@@ -2,8 +2,50 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { links } from './content';
 import { DUR, EASE } from './motion';
+import { clockAt, partOfDay, positionAt } from './palette';
+import { getTime, setTime } from './theme';
 
-type Cmd = { name: string; hint: string; run: () => string | void };
+/** `deep` commands only appear once you start typing */
+type Cmd = { name: string; hint: string; run: () => string | void; deep?: boolean };
+
+/**
+ * The page's palette follows the sun's height, which is the same at 9:00 as
+ * at 15:00: a morning hour sets the afternoon it mirrors. Minutes past midnight.
+ */
+const solar = (m: number) => {
+  const d = ((m % 1440) + 1440) % 1440;
+  return d >= 720 ? d : 1440 - d;
+};
+const toTime = (m: number) => () => void setTime(positionAt(solar(m)), { sweep: true });
+const TIMES: [string, string, number][] = [
+  ['noon', 'paper white', 720],
+  ['morning', 'rose, like the afternoon', 540],
+  ['afternoon', 'rose', 900],
+  ['sunset', 'the light turns', 1025],
+  ['dusk', 'red', 1080],
+  ['night', 'deep red', 1260],
+  ['midnight', 'black, the default', 1440],
+];
+
+/** "time 21:30", "time 9", "time 7:15pm" → minutes past midnight */
+function parseClock(q: string): number | null {
+  const m = q.match(/^time\s+(\d{1,2})(?::?(\d{2}))?\s*(am|pm)?$/);
+  if (!m) return null;
+  let h = Number(m[1]);
+  const min = Number(m[2] ?? 0);
+  if (h > 24 || min > 59) return null;
+  if (m[3] === 'pm' && h < 12) h += 12;
+  if (m[3] === 'am' && h === 12) h = 0;
+  return h * 60 + min;
+}
+
+const sfMinutes = () => {
+  const [h, m] = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'America/Los_Angeles' })
+    .format(new Date())
+    .split(':')
+    .map(Number);
+  return h * 60 + m;
+};
 
 const jump = (id: string) => () => {
   const el = document.getElementById(id);
@@ -32,13 +74,28 @@ export default function CommandBar() {
       { name: 'writing', hint: 'notes on evals and agents', run: () => void (window.location.hash = '/blog') },
       { name: 'github', hint: 'github.com/jadenfix', run: () => void window.open(links.github, '_blank') },
       { name: 'linkedin', hint: 'linkedin.com/in/jadenfix', run: () => void window.open(links.linkedin, '_blank') },
+      {
+        name: 'time',
+        hint: 'set the hour: noon is light, midnight dark',
+        run: () => {
+          const p = getTime();
+          return `it's ${clockAt(p)} here, ${partOfDay(p)}. try time noon, time dusk, time 21:30, time now (san francisco's hour), or drag the sun in the header.`;
+        },
+      },
+      ...TIMES.map(([name, hint, m]): Cmd => ({ name: `time ${name}`, hint, run: toTime(m), deep: true })),
+      { name: 'time now', hint: 'the hour in san francisco', run: () => toTime(sfMinutes())(), deep: true },
       { name: 'whoami', hint: '', run: () => 'jaden fix. software engineer, san francisco.' },
       { name: 'sudo', hint: '', run: () => 'nice try.' },
     ],
     [],
   );
 
-  const shown = cmds.filter((c) => c.name.startsWith(q.trim().toLowerCase()) && (c.hint || q.trim()));
+  const query = q.trim().toLowerCase().replace(/\s+/g, ' ');
+  const at = parseClock(query);
+  const shown: Cmd[] =
+    at !== null
+      ? [{ name: query, hint: `set the page to ${String(Math.floor(solar(at) / 60) % 24).padStart(2, '0')}:${String(solar(at) % 60).padStart(2, '0')}`, run: toTime(at) }]
+      : cmds.filter((c) => c.name.startsWith(query) && (query ? !c.deep || query.length >= 2 : c.hint && !c.deep));
 
   useEffect(() => {
     const openBar = () => {
@@ -92,7 +149,7 @@ export default function CommandBar() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 6, opacity: 0 }}
             transition={{ duration: DUR.short, ease: EASE.crisp }}
-            className="w-full max-w-[520px] border border-line bg-panel shadow-[0_30px_80px_-30px_rgba(0,0,0,0.8)]"
+            className="w-full max-w-[520px] border border-line bg-panel shadow-[0_30px_80px_-30px_rgb(var(--c-shadow)/var(--shadow-a))]"
           >
             <div className="flex items-center gap-2 border-b border-line px-4 py-3 text-[13px]">
               <span className="text-phos">›</span>
