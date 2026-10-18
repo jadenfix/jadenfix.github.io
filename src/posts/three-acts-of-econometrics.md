@@ -1,51 +1,49 @@
 ---
 title: Three acts of econometrics
 date: 2026-10-18
-summary: Compute decided what economists could ask. First it was scarce, then it was cheap, and now it can read. Evals are the newest chapter of the same story, with the same old ways to fool yourself.
-read: 8 min
+summary: Compute decided what economists could ask. First it was scarce, then it was cheap, and now it can read. A short history, and the old ways of fooling yourself that came along at every step.
+read: 6 min
 ---
 
-The first large model of the US economy, the Klein-Goldberger model from 1955, had about twenty equations fit to data from 1929 to 1952. Through most of the fifties, the only way to compute anything like it was an electromechanical desk calculator. Every coefficient was hours of somebody cranking.
+The first big model of the US economy, the [Klein-Goldberger model](https://en.wikipedia.org/wiki/Klein%E2%80%93Goldberger_model) from 1955, had about twenty equations fit to data from 1929 to 1952. Through most of the fifties, the only way to compute something like it was an electromechanical desk calculator. Every coefficient was hours of somebody cranking.
 
-I think about that when a regression with a few hundred thousand rows and a hundred controls finishes before I've let go of the enter key. The history of econometrics, the way I learned it in grad school, is mostly a history of what compute let people ask. I tell it in three acts. The dates are loose, but the shape isn't.
+I think about that when a regression with a hundred controls finishes before I let go of the enter key. The way I learned it in grad school, the history of econometrics is mostly a history of what compute let people ask. I tell it in three acts. The dates are loose. The shape isn't.
 
 ## Act one: arithmetic is expensive
 
-For a long time, the bottleneck was arithmetic. If each extra variable costs you a day, you choose your variables before you touch the data, and theory does the choosing. You wrote down what a consumer or a firm should do, derived the one or two relationships that mattered, and estimated those. Models were small because they had to be.
+When each extra variable costs a day, you choose your variables before touching the data, and theory does the choosing. You derived what a consumer or a firm should do, then estimated the one or two relationships that mattered. Models were small because they had to be.
 
-As computers spread through universities, and later onto desks, the regressions grew. More variables, longer time series, panels that follow the same people or firms for years. That bought something real. Holding more things constant meant you could get closer to the derivative you actually wanted, the effect of one thing with everything else still.
+As computers spread, the regressions grew: more variables, longer series, panels following the same people for years. Holding more things constant got you closer to the effect you actually wanted. It also handed you a new way to fool yourself. With enough variables you can try specifications until one says what you hoped. In 1983 Edward Leamer called this out in ["Let's Take the Con out of Econometrics"](https://ideas.repec.org/a/aea/aecrev/v73y1983i1p31-43.html).
 
-It also bought a new way to fool yourself. With enough variables, you can try specifications until one says what you hoped. In 1983 Edward Leamer published a paper called "Let's Take the Con out of Econometrics," and the con was exactly that: results that depended on which of many reasonable models the author happened to report. The answer that grew out of the next two decades was to care less about the model and more about the design. Find a lottery, a policy that started on one side of a border and not the other, a cutoff that split otherwise identical people, and let the world run the experiment. Angrist and Pischke called it the credibility revolution in 2010, and in 2021 Card, Angrist and Imbens shared a Nobel for it.
+The answer that grew over the next two decades was to trust the design more than the model. Find a lottery, a policy that stopped at a border, a cutoff that split otherwise identical people, and let the world run the experiment. Angrist and Pischke named it [the credibility revolution](https://www.nber.org/papers/w15794) in 2010, and in 2021 Card, Angrist and Imbens shared a Nobel for it.
 
 ## Act two: data gets big and machines learn
 
-Somewhere around the late 2000s, the data changed character. Clicks, searches, transactions and sensors produced more rows than any economist had planned for, and cheap compute meant you could fit models with thousands of parameters and check them by holding data out. In 2012 a neural network won the ImageNet competition by a margin that ended the argument about whether this stuff worked. In 2014 Hal Varian wrote a paper for economists titled "Big Data: New Tricks for Econometrics," which is about as clear a signal as the field sends.
+Somewhere around the late 2000s the data changed character. Clicks, searches and transactions produced more rows than anyone had planned for, and cheap compute made it possible to fit models with thousands of parameters and check them on data held out. A neural network won ImageNet in 2012 by a margin that ended the argument. In 2014 Hal Varian wrote a paper for economists called ["Big Data: New Tricks for Econometrics"](https://www.aeaweb.org/articles?id=10.1257/jep.28.2.3), which is about as loud as the field gets.
 
-Machine learning brought a discipline econometrics had underused: judge a model by how it does on data it hasn't seen. Cross-validation, regularization and held-out test sets are all ways of admitting that a model will memorize whatever you let it memorize.
-
-It also brought a confusion that's still with us. Mullainathan and Spiess put it cleanly in 2017: machine learning is built to produce good predictions, ŷ, and econometrics is built to produce good estimates of effects, β̂. A model can predict house prices beautifully while telling you nothing reliable about what an extra bedroom is worth, because it's free to lean on whatever happens to correlate. Prediction answers "what will happen." Policy needs "what happens if we change this," and the second question is harder.
+Machine learning brought a discipline econometrics had underused: judge a model on data it hasn't seen. It also brought a confusion that's still with us. [Mullainathan and Spiess](https://www.aeaweb.org/articles?id=10.1257/jep.31.2.87) put it cleanly in 2017. Machine learning is built for good predictions, ŷ. Econometrics is built for good estimates of effects, β̂. A model can predict house prices beautifully and tell you nothing reliable about what an extra bedroom is worth, because it's free to lean on whatever happens to correlate.
 
 ## Act three: the machine can read
 
-The third act started when the two traditions began borrowing each other's best parts. Double machine learning, first posted in 2016, uses flexible ML models for all the messy parts of a problem and keeps the classical machinery for the one derivative you care about. Causal forests, published in 2018, find where an effect is large and where it's small, and they stay honest by fitting the shape on one half of the data and estimating the effect on the other.
+Then the two traditions started borrowing each other's best parts. [Double machine learning](https://arxiv.org/abs/1608.00060) uses flexible models for the messy parts of a problem and keeps classical machinery for the one effect you care about. [Causal forests](https://arxiv.org/abs/1510.04342) find where an effect is big and where it's small, and stay honest by finding the shape on one half of the data and measuring on the other.
 
-The bigger change was in what counts as data. Economists had already shown you could measure growth from satellite photos of lights at night. Then in 2017 came the transformer, and over the following years most of what used to be qualitative became measurable. A central bank statement, a product review, a support ticket, a photo of a storefront and a page of code can all be turned into numbers a regression can use. Things that used to live in the discussion section of a paper became variables.
+The bigger change was what counts as data. Economists had already [measured growth from satellite photos of lights at night](https://www.aeaweb.org/articles?id=10.1257/aer.102.2.994). After [the transformer](https://arxiv.org/abs/1706.03762) in 2017, most of what used to be qualitative became measurable. A central bank statement, a support ticket, a photo of a storefront and a page of code can all become variables. Things that used to live in a paper's discussion section moved into its tables.
 
-Agents are the far end of that. An agent's transcript is text, code, tool output and sometimes screenshots, and whether it did good work is partly a number and partly a judgment. For the first time we can model that kind of outcome at scale, predict it, and run experiments on it. Whole fields that only ever had case studies can now have estimates.
+Agents are the far end of that. An agent's transcript is text, code, tool output and screenshots, and whether it did good work is part number, part judgment. We can now predict outcomes like that at scale and run experiments on them. Whole fields that only ever had case studies can have estimates.
 
-## Hill climbing without lying to yourself
+## Climbing without lying to yourself
 
-The pull right now is to treat prediction as the whole game. A number goes up on a leaderboard, and the number going up feels like knowledge. Prediction has earned its reputation, but once you start climbing a score on purpose you're in Leamer's world again, trying specifications until one looks good. A prompt tweak that wins on a benchmark is a specification search with nicer tooling.
+The pull right now is to treat prediction as the whole game. A number goes up on a leaderboard and it feels like knowledge. But climbing a score on purpose puts you right back in Leamer's world, and a prompt tweak that wins on a benchmark is a specification search with nicer tooling.
 
-The tools that keep the climb honest already exist, and nearly all of them are some form of not grading your own homework:
+I learned this one personally. My undergrad thesis tried to see S&P 500 bear markets coming with Markov-switching models, and it won an award. Rebuilding it later, I found a timing error that let the regime model see the next month's price. The [revised edition](#/papers/predictive-stochastic-modeling) uses only data published by each forecast date, and most of the skill that survives turns out to be seeing a bear market that has already started.
 
-- Keep a test set you never look at while tuning, and retire it when you've looked too often. Kaggle competitors learned this the hard way every time the private leaderboard reshuffled the public one.
-- Split before you search. Causal forests stay honest by finding structure on one half and measuring on the other, and eval sets can be split the same way.
-- Decide what counts as a win before you run anything. Pre-registration was the social version of this fix in economics.
-- Ask whether the gain is an effect or a correlation. A change that only helps on tasks that look like your benchmark is a good ŷ with no β̂ behind it.
+The tools that keep a climb honest are all versions of not grading your own homework:
 
-## The same story, in software
+- Keep a test set you never touch while tuning, and retire it once you've looked too often.
+- Split before you search, the way causal forests do.
+- Decide what counts as a win before you run anything.
+- Ask whether a gain is an effect or a correlation. A change that only helps on tasks shaped like your benchmark is a good ŷ with no β̂ behind it.
 
-The parallels between economics and software are closer than people in either field usually admit. An A/B test is a randomized trial. A feature flag rolled out to one region first is a natural experiment waiting to be analyzed. A benchmark is an economic indicator, useful exactly until people are paid to move it. GDP got gamed in its own ways long before any model was trained on SWE-bench.
+## The same story in software
 
-What changed over these three acts was never the core question. It was always how much does y move when x moves, and how sure can I be. What changed is what we're able to call x and y. First it was whatever could be cranked out on a calculator, then whatever a server could hold, and now it's nearly anything a person can read or see. That's thrilling, and it widens the room for fooling yourself at the same rate. I think most of the next few years of AI progress depends on whether we bring the old discipline along into the new room.
+An A/B test is a randomized trial. A feature rolled out to one region first is a natural experiment. A benchmark is an economic indicator, useful until people are paid to move it. Across all three acts the question stayed the same and what we could call data kept growing: first whatever fit on a calculator, then whatever a server could hold, now almost anything a person can read or see. The room for fooling yourself grows at the same rate. Whether the old discipline comes along into the new room is, I think, one of the quieter things that decides how the next few years of AI go.

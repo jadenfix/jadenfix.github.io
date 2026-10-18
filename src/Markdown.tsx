@@ -16,7 +16,7 @@ function inline(text: string, key = 0): ReactNode[] {
     else if (t.startsWith('`')) out.push(<code key={k++} className="bg-panel px-1 py-px text-[0.92em] text-phos">{t.slice(1, -1)}</code>);
     else if (t.startsWith('[')) {
       const [, label, href] = t.match(/\[([^\]]+)\]\(([^)]+)\)/)!;
-      const ext = /^https?:/.test(href);
+      const ext = /^https?:/.test(href) || /\.pdf$/.test(href);
       out.push(
         <a key={k++} href={href} className="link-u text-bone" {...(ext ? { target: '_blank', rel: 'noreferrer' } : {})}>
           {label}

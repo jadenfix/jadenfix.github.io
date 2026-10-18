@@ -1,29 +1,27 @@
 ---
 title: Two labs and a GPU
 date: 2026-10-18
-summary: A microeconomics exercise with no politics in it. Treat frontier AI as a duopoly, or as rented GPUs, simulate both, and see what sets the price of a token.
-read: 7 min
+summary: A microeconomics exercise with no politics in it. Treat frontier AI as a duopoly and as rented GPUs at the same time, simulate it, and see what actually sets the price of a token.
+read: 5 min
 ---
 
-Intermediate micro spends a few weeks on market structure. One firm is a monopoly, and it sets the price where the extra revenue from one more sale equals the extra cost. Many identical firms are perfect competition, and the price falls to cost. In between are the cases that make the class interesting: two firms, or a handful, each watching the others.
+Intermediate micro spends a few weeks on market structure. One firm is a monopoly and prices where one more sale stops paying. Many identical firms are perfect competition and price at cost. The interesting cases are in between: two firms, or a handful, each watching the others.
 
-I've wanted to run frontier AI through that machinery for a while. This is a toy, and it takes no position on whether anyone should be bigger or smaller. It just asks what the textbook would predict.
+I've wanted to run frontier AI through that machinery for a while. This is a toy, and it takes no position on who should be bigger or smaller. It just asks what the textbook predicts.
 
 ## Which market is this?
 
-There are two honest ways to describe it.
+There are two honest descriptions.
 
-The first is a tight oligopoly with two leaders. In Menlo Ventures' December 2025 survey of enterprise spending on model APIs, Anthropic had 40%, OpenAI 27% and Google 21%, so the top three held 88% (Menlo is an Anthropic investor, which is worth knowing when you read their numbers). Square those shares and add them up and you get a concentration index above 2,700 before counting anyone else, which is well past the line US merger guidelines use for "highly concentrated."
+One is a tight oligopoly with two leaders. In [Menlo Ventures' December 2025 survey](https://menlovc.com/perspective/2025-the-state-of-generative-ai-in-the-enterprise/) of enterprise spend on model APIs, Anthropic had 40%, OpenAI 27% and Google 21%, so the top three held 88% (Menlo invests in Anthropic, which is worth knowing). Square those shares and add them and you're past 2,700 before counting anyone else, well over the line US merger guidelines call highly concentrated.
 
-The second description is that a token is just rented compute. A model answering a question is a GPU running for some fraction of a second, and GPU time looks a lot like a commodity. An H100 rented from a big cloud cost around $7.76 an hour in late 2023 and around $6.26 in late 2025. On marketplaces it was closer to $2. The cost of reaching a fixed level of capability has fallen even faster: a16z estimated about 10x a year, and Epoch AI's estimates run from 9x to 900x a year depending on the benchmark.
+The other is that a token is rented compute. A model answering a question is a GPU running for a fraction of a second, and GPU time looks like a commodity. An H100 from a big cloud [cost about $7.76 an hour in late 2023 and $6.26 in late 2025](https://www.silicondata.com/blog/h100-rental-price-over-time), and nearer $2 on marketplaces. The price of a fixed level of capability fell faster still: [a16z](https://a16z.com/llmflation-llm-inference-cost/) estimated about 10x a year, and [Epoch AI](https://epoch.ai/data-insights/llm-inference-price-trends) puts it anywhere from 9x to 900x depending on the benchmark.
 
-And yet the price of the best model hasn't collapsed. GPT-4 launched in March 2023 at $30 per million input tokens and $60 per million output. Today the most capable models from both labs list at $10 and $50. Capability that cost $60 then costs pennies now, but the frontier keeps moving, and the frontier still charges.
-
-So which is it, a duopoly or a commodity? The textbook lets you run both at once.
+Yet the best model never got cheap. GPT-4 launched in March 2023 at $30 per million input tokens and $60 per million output. Today the most capable models from both labs list at $10 and $50. Capability that cost dollars then costs pennies now, but the frontier keeps moving, and the frontier still charges. The textbook lets you hold both descriptions at once.
 
 ## The model
 
-Two labs sell models of equal quality. There's also an outside option: an open-weight model served by whoever rents GPUs, priced at roughly cost, 10% above it. Customers pick whichever gives them the most quality for the price, with some taste for variety, which is the standard logit demand from industrial organization. Each lab sets its price knowing the other will respond, and I solve for the prices where neither wants to move, the Bertrand-Nash equilibrium. Serving costs $2 per million tokens to start, and quality is in made-up points.
+Two labs sell equally good models. There's also an outside option: open-weight models served by whoever rents GPUs, priced 10% above cost. Customers pick whatever gives the most quality for the price, with some taste for variety, which is the standard logit demand from industrial organization. Each lab sets its price knowing the other will respond, and I solve for prices where neither wants to move, the Bertrand-Nash equilibrium. Serving starts at $2 per million tokens, and quality is in made-up points.
 
 | scenario | lab price | margin | each lab's share | open share |
 |---|---|---|---|---|
@@ -34,9 +32,9 @@ Two labs sell models of equal quality. There's also an outside option: an open-w
 
 ## What falls out
 
-**The margin is the lead.** What the labs can charge above cost is set almost entirely by how far ahead of the open option they are. Close the gap from three points to zero and the margin falls by a third while the labs lose most of their share. Nothing about the labs changed. Their competitor in the commodity market got better.
+**The margin is the lead.** What the labs can charge above cost is set almost entirely by how far ahead of open models they are. Close the gap from three points to zero and the margin drops by a third while most of the labs' share walks away. Nothing about the labs changed. The commodity got better.
 
-**Cheaper chips mostly go to customers.** Hold the gap at one point and halve the cost of serving every year for three years:
+**Cheaper chips go to customers.** Hold the gap at one point and halve serving costs every year:
 
 | year | serving cost | lab price | margin |
 |---|---|---|---|
@@ -45,18 +43,16 @@ Two labs sell models of equal quality. There's also an outside option: an open-w
 | 2 | $0.50 | $4.51 | $4.01 |
 | 3 | $0.25 | $4.26 | $4.01 |
 
-Cost falls by 8x and the price falls by about 30%, because the savings pass straight through and the margin stays put at about $4. In this model, cheaper GPUs make tokens cheaper but don't threaten anyone's margin. Only a narrowing quality gap does.
+Cost falls 8x and price falls about 30%. The savings pass straight through and the margin sits at about $4. Cheaper GPUs make tokens cheaper without touching anyone's margin. Only a closing gap does that.
 
-**A one-point lead is worth a lot.** Give one lab a single extra point of quality, with open models three behind. Its price rises to $8.29, its share to 55%, and its profit by about 53%. That's the textbook reason two firms in this position race as hard as they do. The prize for being slightly better is large and it goes to one firm.
+**One point of lead is worth a lot.** Give one lab a single extra point, with open models three behind, and its price rises to $8.29, its share to 55%, and its profit by about 53%. That's the textbook reason two firms in this spot race as hard as they do.
 
-**Two rivals already compete hard.** If the two labs could act as one firm and set a joint price, the profit-maximizing price would be $10.71 instead of $7.10. Rivalry between just two sellers cuts the price by a third. This is the Bertrand insight that surprises people in class: two firms competing on price can be far more competitive than the word "duopoly" suggests, as long as customers can switch.
+**Two rivals already compete hard.** If the labs could act as one firm, the best joint price would be $10.71 instead of $7.10. Rivalry between just two sellers cuts the price by a third. That's the Bertrand surprise from class: two firms competing on price can be far more competitive than "duopoly" sounds, as long as customers can switch.
 
 ## What the toy leaves out
 
-Quite a lot. Real customers have switching costs, contracts and tooling built around one provider, which soften competition. Quality isn't one number, so the labs can each lead in different places. Training costs are huge and fixed, which this model ignores completely, and fixed costs are exactly what keep the number of frontier labs small in the first place. The GPU market isn't a clean commodity either: rental prices rebounded by around 40% between late 2025 and early 2026 as demand caught up with supply.
+Plenty. Switching costs, contracts and tooling soften competition. Quality isn't one number, so each lab can lead somewhere different. Training costs are huge and fixed, which this model ignores, and fixed costs are exactly what keep the number of frontier labs small. GPUs aren't a clean commodity either: rental prices rebounded around 40% between late 2025 and early 2026 as demand caught up.
 
-I still find the exercise clarifying. Both descriptions are true at once. A frontier model is a differentiated product in a tight oligopoly, and one step behind the frontier it's a commodity sold by the GPU-hour. The price of a token is the cost of a GPU plus a premium for being ahead, and the premium is worth only as much as the lead.
-
-That's also how I think about my own work. The cheap part of anything gets cheaper every year. What people pay for is the part that's still hard, and that part keeps moving.
+Still, the picture is clarifying. At the frontier a model is a differentiated product in a tight oligopoly. One step behind, it's a commodity sold by the GPU-hour. The price of a token is the cost of a GPU plus a premium for being ahead, and the premium is worth exactly as much as the lead. I think that's true of most work, too. The cheap part gets cheaper every year, and people pay for the part that's still hard, which keeps moving.
 
 The simulation is about forty lines of standard-library Python: [duopoly.py](https://github.com/jadenfix/jadenfix.github.io/blob/main/public/data/econ/duopoly.py). Change the numbers and see what moves.
