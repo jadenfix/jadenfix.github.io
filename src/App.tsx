@@ -1,19 +1,143 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState, type ComponentType, type LazyExoticComponent, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import AsciiHole from './AsciiHole';
-import { commits, links, papers, roles, tempera, upstream } from './content';
-import { Chip, Figure, Reveal, Rule, SectionHead, Typed } from './ui';
+import CommandBar from './CommandBar';
+import Cursor from './Cursor';
+import { Markdown } from './Markdown';
+import Memories from './Memories';
+import RustyPlayer from './RustyPlayer';
+import { commits, links, roles, tempera, upstream } from './content';
+import { useScramble, useSfTime } from './hooks';
+import { formatDate, paperDocs, posts, type Doc } from './md';
+import { Chip, Reveal, Rule, SectionHead, Typed } from './ui';
 
-const nav = [
-  { href: '#work', label: 'work' },
-  { href: '#research', label: 'research' },
-  { href: '#tempera', label: 'tempera' },
-  { href: '#projects', label: 'projects' },
-  { href: '#open-source', label: 'open source' },
+type Lazy = LazyExoticComponent<ComponentType>;
+
+// Demos load on demand, and a demo that isn't there yet renders a quiet placeholder.
+const demoModules = import.meta.glob<{ default: ComponentType }>('./demos/**/*.tsx');
+const Missing = () => <div className="flex h-[200px] items-center justify-center border border-line text-[11px] text-faint">demo coming soon</div>;
+const demo = (name: string): Lazy => {
+  const load = demoModules[`./demos/${name}.tsx`];
+  return lazy(load ?? (() => Promise.resolve({ default: Missing })));
+};
+const CreditSim = demo('CreditSim');
+const RegimeExplorer = demo('RegimeExplorer');
+const RegimeDensities = demo('thesis/RegimeDensities');
+const ForecastSkill = demo('thesis/ForecastSkill');
+const Calibration = demo('thesis/Calibration');
+const Episodes = demo('thesis/Episodes');
+const TransportDemo = demo('TransportDemo');
+const BenchMatrix = demo('BenchMatrix');
+const SpacewindLab = demo('SpacewindLab');
+const ReplayDemo = demo('ReplayDemo');
+const MarketMakerDemo = demo('MarketMakerDemo');
+const InftyThinkDemo = demo('InftyThinkDemo');
+
+// ------------------------------------------------------------------ research
+type Paper = {
+  slug: string;
+  kind: string;
+  title: string;
+  teaser: string;
+  links: { label: string; href: string }[];
+  hero: Lazy;
+  figures: { title: string; Comp: Lazy }[];
+};
+
+const THESIS_PDF =
+  'https://github.com/jadenfix/Predictive-Stochastic-Modeling-for-Financial-Markets-/blob/main/Predictive_Stochastic_Modeling_for_Financial_Markets.pdf';
+
+const papers: Paper[] = [
+  {
+    slug: 'branch-aware',
+    kind: 'paper · 2026',
+    title: 'Branch-Aware Hindsight Credit Assignment for LLM Agents',
+    teaser:
+      'Outcome-only credit pays every step of a winning episode the same, so a stall earns as much as the move that won, and stalling never fails. The figure runs the paper’s own scorers on its controlled benchmark, live.',
+    links: [
+      { label: 'pdf', href: 'https://github.com/jadenfix/CreditAssignment/blob/main/paper/main.pdf' },
+      { label: 'code', href: 'https://github.com/jadenfix/CreditAssignment' },
+    ],
+    hero: CreditSim,
+    figures: [],
+  },
+  {
+    slug: 'predictive-stochastic-modeling',
+    kind: 'thesis · adam smith award',
+    title: 'Predictive Stochastic Modeling for Financial Markets',
+    teaser:
+      'A century of S&P 500 bull and bear regimes, read two ways: filtered, with only the data available at the time, and smoothed, with hindsight. Scrub through it, or jump to 1929, 1987 or 2008.',
+    links: [
+      { label: 'pdf', href: THESIS_PDF },
+      { label: 'code', href: 'https://github.com/jadenfix/Predictive-Stochastic-Modeling-for-Financial-Markets-' },
+    ],
+    hero: RegimeExplorer,
+    figures: [
+      { title: 'Two regimes', Comp: RegimeDensities },
+      { title: 'Every bear market since 1900', Comp: Episodes },
+      { title: 'Forecast skill by horizon', Comp: ForecastSkill },
+      { title: 'Calibration', Comp: Calibration },
+    ],
+  },
+  {
+    slug: 'critique-transport',
+    kind: 'in progress',
+    title: 'Critique-Transport Smoothing',
+    teaser:
+      'Can a critique tell you where a long trajectory went wrong, and can optimal transport carry that signal back to the right steps? Below, entropic Sinkhorn aligning a failed trajectory with its critique-edited target, computed in your browser.',
+    links: [{ label: 'code', href: 'https://github.com/jadenfix/CreditAssignment-LongHorizon' }],
+    hero: TransportDemo,
+    figures: [],
+  },
 ];
+
+// ------------------------------------------------------------------ routing
+type Route = { name: 'home'; anchor?: string } | { name: 'blog' } | { name: 'post'; post: Doc } | { name: 'paper'; paper: Paper };
+
+function readRoute(): Route {
+  const h = window.location.hash;
+  if (h === '#/blog' || h === '#/blog/') return { name: 'blog' };
+  const post = h.match(/^#\/blog\/(.+)$/);
+  if (post) {
+    const p = posts.find((x) => x.slug === post[1]);
+    if (p) return { name: 'post', post: p };
+  }
+  const paper = h.match(/^#\/papers\/(.+)$/);
+  if (paper) {
+    const p = papers.find((x) => x.slug === paper[1]);
+    if (p) return { name: 'paper', paper: p };
+  }
+  return { name: 'home', anchor: h.startsWith('#') && !h.startsWith('#/') ? h.slice(1) : undefined };
+}
+
+function useRoute() {
+  const [route, setRoute] = useState(readRoute);
+  useEffect(() => {
+    const on = () => setRoute(readRoute());
+    window.addEventListener('hashchange', on);
+    return () => window.removeEventListener('hashchange', on);
+  }, []);
+  useEffect(() => {
+    if (route.name === 'home' && route.anchor) {
+      window.setTimeout(() => document.getElementById(route.anchor!)?.scrollIntoView(), 60);
+    } else if (route.name !== 'home') window.scrollTo(0, 0);
+  }, [route]);
+  return route;
+}
+
+// ------------------------------------------------------------------ chrome
+function NavLink({ href, label }: { href: string; label: string }) {
+  const [text, scramble] = useScramble(label);
+  return (
+    <a href={href} onMouseEnter={scramble} onFocus={scramble} className="transition-colors hover:text-bone">
+      {text}
+    </a>
+  );
+}
 
 function Header() {
   const [scrolled, setScrolled] = useState(false);
+  const time = useSfTime();
   useEffect(() => {
     const on = () => setScrolled(window.scrollY > 8);
     on();
@@ -22,108 +146,141 @@ function Header() {
   }, []);
   return (
     <header className={`sticky top-0 z-40 transition-colors duration-500 ${scrolled ? 'border-b border-line bg-void/85 backdrop-blur-md' : 'border-b border-transparent'}`}>
-      <div className="page flex h-14 items-center justify-between text-[12px]">
+      <div className="page flex h-14 items-center justify-between gap-4 text-[12px]">
         <a href="#top" className="flex items-center gap-2 text-bone">
           <span className="inline-block h-[11px] w-[6px] animate-blink bg-phos" aria-hidden />
           jaden fix
         </a>
-        <nav className="hidden items-center gap-7 text-dim md:flex">
-          {nav.map((n) => (
-            <a key={n.href} href={n.href} className="transition-colors hover:text-bone">
-              {n.label}
-            </a>
-          ))}
+        <nav className="hidden items-center gap-6 text-dim md:flex">
+          <NavLink href="#experience" label="experience" />
+          <NavLink href="#research" label="research" />
+          <NavLink href="#projects" label="projects" />
+          <NavLink href="#/blog" label="writing" />
         </nav>
-        <a href="#contact" className="text-phos transition-opacity hover:opacity-80">
-          contact →
-        </a>
+        <div className="flex items-center gap-4 text-faint">
+          <span className="hidden sm:inline" title="Local time in San Francisco">
+            <span className="mr-1.5 inline-block h-1.5 w-1.5 translate-y-[-1px] rounded-full bg-phos/80" />
+            sf {time}
+          </span>
+          <button
+            onClick={() => window.dispatchEvent(new Event('open-command-bar'))}
+            className="border border-line px-1.5 py-px text-[11px] text-dim transition-colors hover:border-phos hover:text-phos"
+            aria-label="Open navigation (press /)"
+          >
+            /
+          </button>
+        </div>
       </div>
     </header>
   );
 }
 
+function Footer() {
+  return (
+    <footer className="page mt-20 flex flex-wrap items-center justify-between gap-3 border-t border-line py-6 text-[11px] text-faint">
+      <span>© {new Date().getFullYear()} jaden fix · press / to get around</span>
+      <span>hero drawn in characters from the schwarzschild geodesic equation</span>
+    </footer>
+  );
+}
+
+function Demo({ Comp, h = 420 }: { Comp: Lazy; h?: number }) {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center border border-line text-[11px] text-faint" style={{ height: h }}>loading…</div>}>
+      <Comp />
+    </Suspense>
+  );
+}
+
+// ------------------------------------------------------------------ home
 function Hero() {
   const [stage, setStage] = useState(0);
+  const [view, setView] = useState<'ascii' | 'render'>('ascii');
   return (
     <section id="top" className="page pt-6 sm:pt-10">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 2.4, ease: 'easeOut' }}>
-        <AsciiHole />
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 2.4, ease: 'easeOut' }} className="relative">
+        <div className={`transition-opacity duration-1000 ${view === 'ascii' ? 'opacity-100' : 'pointer-events-none opacity-0'}`}>
+          <AsciiHole />
+        </div>
+        {view === 'render' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1.2 }} className="absolute inset-0 flex items-center justify-center">
+            <img src="/media/blackhole.webp" alt="The same black hole, ray-traced at full resolution." className="max-h-full w-full object-contain" />
+          </motion.div>
+        )}
+        <div className="absolute bottom-1 right-0 flex gap-3 text-[11px]">
+          {(['ascii', 'render'] as const).map((v) => (
+            <button key={v} onClick={() => setView(v)} className={view === v ? 'text-phos' : 'text-faint hover:text-dim'} aria-pressed={view === v}>
+              [ {v === 'ascii' ? 'characters' : 'ray-traced'} ]
+            </button>
+          ))}
+        </div>
       </motion.div>
 
-      <div className="mx-auto -mt-2 max-w-[760px] text-center sm:-mt-6">
-        <div className="label text-phos">
-          <Typed text="jaden fix · software engineer · san francisco" speed={42} delay={900} cursor onDone={() => setStage(1)} />
+      <div className="mx-auto mt-4 max-w-[760px] text-center">
+        <h1 className="display text-[56px] leading-none sm:text-[96px]">
+          <Typed text="Jaden Fix" speed={95} delay={900} onDone={() => setStage(1)} />
+        </h1>
+        <div className="label mt-5 text-[12px] text-phos">
+          {stage >= 1 && <Typed text="software engineer · san francisco" speed={38} cursor onDone={() => setStage(2)} />}
+          {stage < 1 && <span className="invisible">software engineer · san francisco</span>}
         </div>
-        <motion.h1
-          initial={{ opacity: 0, y: 8 }}
-          animate={stage >= 1 ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 1.6, ease: [0.2, 0.7, 0.2, 1] }}
-          onAnimationComplete={() => stage >= 1 && setStage(2)}
-          className="display mt-6 text-[44px] leading-[1.02] sm:text-[72px]"
-        >
-          I build agents and the systems they <em className="italic text-phos">run on</em>.
-        </motion.h1>
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={stage >= 2 ? { opacity: 1 } : {}}
-          transition={{ duration: 1.4 }}
-          className="mx-auto mt-7 max-w-[600px] text-[14px] leading-[1.9] text-dim"
-        >
-          Platform &amp; Applied AI at{' '}
-          <a className="link-u text-bone" href="https://www.afterquery.com" target="_blank" rel="noreferrer">
-            AfterQuery
-          </a>
-          , building the post-training data and RL environments frontier models learn from. Before that, agents at Scale AI and founding
-          engineer at Roe (YC).
-        </motion.p>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={stage >= 2 ? { opacity: 1 } : {}}
-          transition={{ duration: 1.4, delay: 0.4 }}
-          className="mt-14 flex justify-center"
-        >
-          <a href="#work" className="label animate-breathe" aria-label="Scroll to work">
+        <motion.div initial={{ opacity: 0 }} animate={stage >= 2 ? { opacity: 1 } : {}} transition={{ duration: 1.4, delay: 0.3 }} className="mt-14 flex justify-center">
+          <a href="#rusty" className="label animate-breathe">
             scroll ↓
           </a>
         </motion.div>
       </div>
-
-      <Reveal className="mt-24 grid grid-cols-2 gap-y-6 border-y border-line py-6 sm:grid-cols-4">
-        {[
-          ['now', 'AfterQuery'],
-          ['before', 'Scale AI · Roe (YC)'],
-          ['writes', 'Rust · Python · JAX · Go'],
-          ['studied', 'M.S., Cal Poly'],
-        ].map(([k, v]) => (
-          <div key={k}>
-            <div className="label">{k}</div>
-            <div className="mt-1.5 text-[13px] text-bone">{v}</div>
-          </div>
-        ))}
-      </Reveal>
     </section>
   );
 }
 
-function Work() {
+function Featured() {
   return (
-    <section id="work" className="page">
+    <section id="rusty" className="page">
       <Rule />
-      <SectionHead n="01" label="work" title="Where I’ve worked">
-        I like problems where correctness is measurable. If a claim can be measured, measure it, and write down what it doesn’t show.
-      </SectionHead>
-      <div className="mt-14 md:grid md:grid-cols-12">
+      <div className="grid gap-10 lg:grid-cols-12 lg:items-end">
+        <div className="lg:col-span-4">
+          <div className="label">
+            <span className="text-phos">now playing</span> · rusty
+          </div>
+          <h2 className="display mt-4 text-[52px] leading-none sm:text-[64px]">
+            <Typed text="A coding agent, working." speed={45} />
+          </h2>
+          <p className="mt-6 text-[13px] leading-[1.85] text-dim">
+            rusty is a coding agent I wrote in Rust: one static binary, about 400 tests. A goal only closes when a pinned check passes, and the
+            permission classifier reads what <span className="text-bone">npm run</span>, heredocs and <span className="text-bone">ssh</span> will actually
+            execute before deciding whether to ask. These are real sessions.
+          </p>
+          <div className="mt-6 flex gap-2">
+            <Chip name="github" href="https://github.com/jadenfix/rusty" />
+          </div>
+          <p className="mt-6 text-[11px] text-faint">← → to switch sessions</p>
+        </div>
+        <Reveal className="lg:col-span-8">
+          <RustyPlayer auto />
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+function Experience() {
+  return (
+    <section id="experience" className="page">
+      <Rule />
+      <SectionHead n="01" label="experience" title="Where I’ve worked" />
+      <div className="mt-12 md:grid md:grid-cols-12">
         <ol className="md:col-span-9 md:col-start-4">
           {roles.map((r, i) => (
-            <Reveal key={r.org} delay={i * 0.08}>
-              <li className="grid gap-2 border-t border-line py-7 sm:grid-cols-[170px_1fr] sm:gap-8">
+            <Reveal key={r.org} delay={i * 0.06}>
+              <li className="grid gap-2 border-t border-line py-6 sm:grid-cols-[170px_1fr] sm:gap-8">
                 <div className="text-[12px] text-dim">
                   {r.dates}
                   {r.current && <span className="ml-2 text-phos">● now</span>}
                 </div>
                 <div>
-                  <div className="flex flex-wrap items-baseline gap-x-3">
-                    <h3 className="display text-[30px] leading-tight">
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <h3 className="display text-[28px] leading-tight">
                       {r.href ? (
                         <a className="link-u" href={r.href} target="_blank" rel="noreferrer">
                           {r.org}
@@ -132,10 +289,10 @@ function Work() {
                         r.org
                       )}
                     </h3>
-                    {r.tag && <span className="text-[11px] text-phos">{r.tag}</span>}
+                    {r.tag && <span className="border border-phos/50 px-1 text-[10px] text-phos">{r.tag}</span>}
+                    <span className="text-[12px] text-bone">{r.title}</span>
                   </div>
-                  <div className="mt-1 text-[13px] text-bone">{r.title}</div>
-                  <p className="mt-2 max-w-[600px] text-[13px] leading-[1.85] text-dim">{r.body}</p>
+                  {r.body && <p className="mt-2 max-w-[600px] text-[13px] leading-[1.85] text-dim">{r.body}</p>}
                 </div>
               </li>
             </Reveal>
@@ -146,41 +303,164 @@ function Work() {
   );
 }
 
+function PaperBlock({ p, i }: { p: Paper; i: number }) {
+  return (
+    <Reveal className={i === 0 ? 'mt-14' : 'mt-28'}>
+      <div className="label">{p.kind}</div>
+      <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3">
+        <h3 className="display max-w-[760px] text-[32px] leading-tight sm:text-[40px]">
+          <a href={`#/papers/${p.slug}`} className="link-u">
+            {p.title}
+          </a>
+        </h3>
+        <div className="flex flex-wrap gap-2">
+          {p.links.map((l) => (
+            <Chip key={l.label} name={l.label} href={l.href} />
+          ))}
+          <a href={`#/papers/${p.slug}`} className="chip border-phos/60 text-phos hover:bg-phos/10">
+            paper page →
+          </a>
+        </div>
+      </div>
+      <p className="mb-8 mt-4 max-w-[720px] text-[13px] leading-[1.85] text-dim">{p.teaser}</p>
+      <Demo Comp={p.hero} h={520} />
+    </Reveal>
+  );
+}
+
 function Research() {
   return (
     <section id="research" className="page">
       <Rule />
-      <SectionHead n="02" label="research" title="How agents learn from long trajectories">
-        Your agent’s training pipeline may be teaching it to stall. The figure plays one episode twice: once scored by its outcome, once by
-        what each step changed.
+      <SectionHead n="02" label="research" title="Research">
+        Credit assignment for agents, regimes in markets, and how to tell a real gain from noise. Every figure here is live.
       </SectionHead>
-      <Reveal className="mt-14">
-        <Figure caption="fig. 1 · loop-action bias, drawn as a constellation" href={links.constellation} hrefLabel="renderer">
-          <img
-            src="/media/constellation.webp"
-            alt="An agent's episode drawn as a constellation. Outcome-only credit lights the orbit that went nowhere as brightly as the winning path; branch-aware credit turns it red."
-            className="w-full"
-            loading="lazy"
-          />
-        </Figure>
-      </Reveal>
-      <div className="mt-8">
-        {papers.map((p, i) => (
-          <Reveal key={p.title} delay={i * 0.08}>
-            <article className="grid gap-3 border-t border-line py-8 md:grid-cols-12">
-              <div className="label md:col-span-3">{p.kind.toLowerCase()}</div>
-              <div className="md:col-span-9">
-                <h3 className="display text-[28px] leading-tight sm:text-[32px]">{p.title}</h3>
-                <p className="mt-3 max-w-[700px] text-[13px] leading-[1.85] text-dim">{p.body}</p>
-                <div className="mt-4 flex gap-2">
-                  {p.links.map((l) => (
-                    <Chip key={l.label} name={l.label} href={l.href} />
-                  ))}
+      {papers.map((p, i) => (
+        <PaperBlock key={p.slug} p={p} i={i} />
+      ))}
+    </section>
+  );
+}
+
+const projects: { id: string; name: string; tag: string; href: string; body: string; Comp: Lazy; h: number }[] = [
+  {
+    id: 'fullstack-bench',
+    name: 'FullStack-Bench',
+    tag: 'benchmark · python',
+    href: 'https://github.com/jadenfix/FullStack-Bench',
+    body: 'Can a coding agent ship a full-stack change without paging anyone? Agents work on SimCloud, a simulated cloud with synthetic users on prod and a hash-chained incident log, and are graded on the whole episode. Each square is one real run; switch views and watch passing runs turn out to be unsafe.',
+    Comp: BenchMatrix,
+    h: 420,
+  },
+  {
+    id: 'spacewind',
+    name: 'Spacewind',
+    tag: 'physics engine · c11',
+    href: 'https://github.com/jadenfix/space-simulation-engine',
+    body: 'A dependency-free engine for asking whether a spacecraft can sail on sunlight, solar wind and gravity: Boris-pushed plasma, Parker solar wind, Kerr geodesics, particle-in-cell. Its assurance run passes about 233,000 checks. Below, the same physics in real time.',
+    Comp: SpacewindLab,
+    h: 560,
+  },
+  {
+    id: 'replaykit',
+    name: 'ReplayKit',
+    tag: 'debugger · rust',
+    href: 'https://github.com/jadenfix/ReplayKit',
+    body: 'Time-travel debugging for agent runs. Fork any step, patch it, replay only what’s downstream, and diff against the original.',
+    Comp: ReplayDemo,
+    h: 560,
+  },
+  {
+    id: 'drl4mm',
+    name: 'DRL4MM',
+    tag: 'reinforcement learning · python',
+    href: 'https://github.com/jadenfix/DRL4MM',
+    body: 'A TD3 market maker, trained with the repo’s own code on a day of real LTC/USDT order flow, quoting live in your browser against a FIFO limit order book next to a fixed-midpoint baseline. It matches the Python simulator fill for fill. It does not beat the baseline yet, and the demo says so.',
+    Comp: MarketMakerDemo,
+    h: 820,
+  },
+  {
+    id: 'inftythink',
+    name: 'InftyThink',
+    tag: 'reasoning · jax',
+    href: 'https://github.com/jadenfix/InftyThink',
+    body: 'Reason in bounded segments, fold each into a short summary, and carry only the summaries forward, so peak context is capped by the question plus a few summaries. Below, real traces from the repo’s own pipeline on three GSM8K problems, next to plain chain-of-thought.',
+    Comp: InftyThinkDemo,
+    h: 620,
+  },
+];
+
+function Projects() {
+  return (
+    <section id="projects" className="page">
+      <Rule />
+      <SectionHead n="03" label="projects" title="Things I’ve built" />
+      <div className="mt-14 space-y-28">
+        {projects.map((p) => (
+          <Reveal key={p.id}>
+            <div id={p.id} className="mb-7 grid gap-4 lg:grid-cols-12">
+              <div className="lg:col-span-4">
+                <div className="label">{p.tag}</div>
+                <h3 className="display mt-3 text-[40px] leading-none">
+                  <a className="link-u" href={p.href} target="_blank" rel="noreferrer">
+                    {p.name}
+                  </a>
+                </h3>
+              </div>
+              <div className="lg:col-span-8">
+                <p className="text-[13px] leading-[1.85] text-dim">{p.body}</p>
+                <div className="mt-4">
+                  <Chip name="github" href={p.href} />
                 </div>
               </div>
-            </article>
+            </div>
+            <Demo Comp={p.Comp} h={p.h} />
           </Reveal>
         ))}
+      </div>
+      <Reveal className="mt-24 border-t border-line pt-8 md:grid md:grid-cols-12">
+        <div className="label md:col-span-3">more on github</div>
+        <ul className="mt-4 space-y-3 text-[13px] md:col-span-9 md:mt-0">
+          {[
+            { name: 'trading', href: 'https://github.com/jadenfix/trading', body: 'Rust bots on Kalshi, with a socket bridge so an agent can drive them.' },
+            { name: 'Palette', href: 'https://github.com/jadenfix/palette', body: 'An eval gate with its own statistics engine that can answer pass, fail, or inconclusive.' },
+            { name: 'Bayesian CNN', href: 'https://github.com/jadenfix/Bayesian-Neural-Network-for-CIFAR-10-Image-Classification', body: 'A Bayesian convolutional network on CIFAR-10 with TensorFlow Probability.' },
+            { name: 'everything else', href: 'https://github.com/jadenfix?tab=repositories', body: 'About a hundred public repositories.' },
+          ].map((r) => (
+            <li key={r.name} className="flex flex-wrap items-baseline gap-x-4">
+              <a href={r.href} target="_blank" rel="noreferrer" className="link-u text-bone">
+                {r.name} ↗
+              </a>
+              <span className="text-dim">{r.body}</span>
+            </li>
+          ))}
+        </ul>
+      </Reveal>
+    </section>
+  );
+}
+
+function Writing() {
+  return (
+    <section id="writing" className="page">
+      <Rule />
+      <SectionHead n="04" label="writing" title="Notes" />
+      <div className="mt-12 md:grid md:grid-cols-12">
+        <ul className="md:col-span-9 md:col-start-4">
+          {posts.map((p, i) => (
+            <Reveal key={p.slug} delay={i * 0.08}>
+              <li className="border-t border-line">
+                <a href={`#/blog/${p.slug}`} className="group grid gap-2 py-6 sm:grid-cols-[130px_1fr] sm:gap-8">
+                  <span className="text-[12px] text-faint">{formatDate(p.date)}</span>
+                  <span>
+                    <span className="display block text-[26px] leading-tight transition-colors group-hover:text-phos">{p.title}</span>
+                    <span className="mt-1.5 block text-[13px] leading-[1.8] text-dim">{p.summary}</span>
+                  </span>
+                </a>
+              </li>
+            </Reveal>
+          ))}
+        </ul>
       </div>
     </section>
   );
@@ -190,10 +470,9 @@ function Tempera() {
   return (
     <section id="tempera" className="page">
       <Rule />
-      <SectionHead n="03" label="tempera" title="An agent platform, from first principles">
-        Something I’m building on my own time, mostly in Rust. Agents that act in the real world should do it under explicit authority,
-        inside a sandbox, with memory they can cite and a receipt for everything consequential. Every product exposes one OpenAPI contract;
-        the SDKs, CLIs and MCP tools are generated from it, so nothing drifts.
+      <SectionHead n="05" label="tempera" title="An agent platform, from first principles">
+        Something I’m building on my own time, mostly in Rust. Agents that act in the real world should do it under explicit authority, inside a
+        sandbox, with memory they can cite and a receipt for everything consequential.
       </SectionHead>
       <div className="mt-14 grid gap-px border border-line bg-line sm:grid-cols-2 lg:grid-cols-3">
         {tempera.map((l, i) => (
@@ -215,190 +494,6 @@ function Tempera() {
           </p>
         </div>
       </div>
-      <Reveal className="mt-20 grid gap-10 lg:grid-cols-12 lg:items-center">
-        <div className="lg:col-span-5">
-          <div className="label">demo · palette</div>
-          <h3 className="display mt-3 text-[34px] leading-[1.1]">
-            A CI gate that knows when it <em className="italic text-phos">doesn’t know</em>
-          </h3>
-          <p className="mt-4 text-[13px] leading-[1.85] text-dim">
-            Palette records what an agent did, turns its failures into datasets, and only lets a change ship when it beats a held-out split and
-            the bootstrap says it isn’t overfitting. When the evidence is thin, it says inconclusive and how many more cases it needs.
-          </p>
-        </div>
-        <div className="lg:col-span-7">
-          <Figure caption="the gate, running in the browser" href="https://github.com/jadenfix/palette" hrefLabel="palette">
-            <video className="w-full opacity-90" src="/media/palette-gate.webm" autoPlay muted loop playsInline preload="metadata" />
-          </Figure>
-        </div>
-      </Reveal>
-    </section>
-  );
-}
-
-const rustyTabs = [
-  { key: 'fix', label: 'find and fix', src: '/media/rusty-hero.gif', note: 'Finds two real bugs in a discount module, fixes both, and proves it by running the tests.' },
-  { key: 'goal', label: 'goal mode', src: '/media/rusty-goal.gif', note: 'Plans, writes a CLI and its tests, runs them, and can only finish by handing over evidence.' },
-  { key: 'swarm', label: 'swarm', src: '/media/rusty-swarm.gif', note: 'Four read-only workers audit four modules in parallel and merge a ranked bug list.' },
-];
-
-function Rusty() {
-  const [tab, setTab] = useState(rustyTabs[0]);
-  return (
-    <div className="grid gap-10 lg:grid-cols-12 lg:items-center">
-      <div className="lg:col-span-5">
-        <div className="label">coding agent · rust</div>
-        <h3 className="display mt-3 text-[42px] leading-none">
-          <a className="link-u" href="https://github.com/jadenfix/rusty" target="_blank" rel="noreferrer">rusty</a>
-        </h3>
-        <p className="mt-4 text-[13px] leading-[1.85] text-dim">
-          A coding agent in one static Rust binary, with about 400 tests. A goal only closes when a pinned check passes, and its permission
-          classifier reads what <span className="text-bone">npm run</span>, heredocs and <span className="text-bone">ssh</span> will actually execute before
-          deciding to ask.
-        </p>
-        <div className="mt-6 flex flex-wrap gap-x-4 gap-y-2 text-[12px]" role="tablist">
-          {rustyTabs.map((t) => (
-            <button
-              key={t.key}
-              role="tab"
-              aria-selected={t.key === tab.key}
-              onClick={() => setTab(t)}
-              className={`transition-colors ${t.key === tab.key ? 'text-phos' : 'text-dim hover:text-bone'}`}
-            >
-              [ {t.label} ]
-            </button>
-          ))}
-        </div>
-        <p className="mt-4 min-h-[48px] text-[12.5px] leading-[1.8] text-faint">{tab.note}</p>
-      </div>
-      <div className="lg:col-span-7">
-        <Figure caption="a real session, idle pauses trimmed" href="https://github.com/jadenfix/rusty" hrefLabel="rusty">
-          <img key={tab.key} src={tab.src} alt={`rusty: ${tab.label}`} className="w-full" />
-        </Figure>
-      </div>
-    </div>
-  );
-}
-
-function Bench() {
-  const total = 84;
-  const hit = 38;
-  return (
-    <div className="grid gap-10 lg:grid-cols-12 lg:items-center">
-      <div className="lg:order-2 lg:col-span-5">
-        <div className="label">benchmark · python</div>
-        <h3 className="display mt-3 text-[42px] leading-none">
-          <a className="link-u" href="https://github.com/jadenfix/FullStack-Bench" target="_blank" rel="noreferrer">FullStack-Bench</a>
-        </h3>
-        <p className="mt-4 text-[13px] leading-[1.85] text-dim">
-          Can an agent ship a full-stack change without paging anyone? Agents work on SimCloud, a simulated cloud with synthetic users on prod
-          and a hash-chained incident log, and are graded on the whole episode, not just the final state.
-        </p>
-      </div>
-      <div className="lg:order-1 lg:col-span-7">
-        <div className="border border-line bg-panel p-7 sm:p-9">
-          <div className="flex items-baseline gap-3">
-            <span className="display text-[68px] leading-none text-phos">{hit}</span>
-            <span className="display text-[30px] text-faint">/ {total}</span>
-          </div>
-          <p className="mt-2 max-w-[420px] text-[12.5px] leading-[1.8] text-dim">
-            graded runs passed the usual final-state check but failed the whole-episode safety check.
-          </p>
-          <div className="mt-7 grid grid-cols-[repeat(14,minmax(0,1fr))] gap-[5px]">
-            {Array.from({ length: total }, (_, i) => (
-              <motion.span
-                key={i}
-                initial={{ opacity: 0 }}
-                whileInView={{ opacity: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: i * 0.018 }}
-                className={`aspect-square ${i < hit ? 'bg-phos/85 shadow-[0_0_10px_rgba(232,169,106,0.35)]' : 'bg-line'}`}
-              />
-            ))}
-          </div>
-          <div className="mt-5 flex flex-wrap gap-5 text-[11px] text-dim">
-            <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 bg-phos/85" /> looked done, wasn’t safe</span>
-            <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 bg-line" /> every other run</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Spacewind() {
-  return (
-    <div className="grid gap-10 lg:grid-cols-12 lg:items-center">
-      <div className="lg:col-span-5">
-        <div className="label">physics engine · c11</div>
-        <h3 className="display mt-3 text-[42px] leading-none">
-          <a className="link-u" href="https://github.com/jadenfix/space-simulation-engine" target="_blank" rel="noreferrer">Spacewind</a>
-        </h3>
-        <p className="mt-4 text-[13px] leading-[1.85] text-dim">
-          A dependency-free engine for asking whether a spacecraft can sail on sunlight, solar wind and gravity: Kerr geodesics, solar wind,
-          3D electromagnetic particle-in-cell. Every claim file lists what it does <em className="text-bone">not</em> show. The black hole at the top
-          of this page is the same kind of math.
-        </p>
-        <dl className="mt-6 grid grid-cols-3 gap-4 border-t border-line pt-5">
-          {[
-            ['~233k', 'assurance checks'],
-            ['0', 'failures'],
-            ['1.999', 'measured order'],
-          ].map(([v, k]) => (
-            <div key={k}>
-              <dt className="display text-[28px] leading-none text-bone">{v}</dt>
-              <dd className="mt-1 text-[11px] text-dim">{k}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
-      <div className="lg:col-span-7">
-        <Figure caption="plasma benchmark convergence, from real solver output" href="https://github.com/jadenfix/space-simulation-engine/tree/main/demo" hrefLabel="reproduce">
-          <video className="w-full" src="/media/spacewind-plasma.mp4" autoPlay muted loop playsInline preload="metadata" />
-        </Figure>
-      </div>
-    </div>
-  );
-}
-
-const more = [
-  { name: 'ReplayKit', href: 'https://github.com/jadenfix/ReplayKit', body: 'Time-travel debugging for agent runs. Fork any step, patch it, replay only what’s downstream, and diff.', tag: 'rust' },
-  { name: 'DRL4MM', href: 'https://github.com/jadenfix/DRL4MM', body: 'A TD3 market-making agent trading against a FIFO limit order book.', tag: 'python' },
-  { name: 'InftyThink', href: 'https://github.com/jadenfix/InftyThink', body: 'A JAX reproduction of bounded-context reasoning: think in segments, carry forward only a summary.', tag: 'jax' },
-];
-
-function Projects() {
-  return (
-    <section id="projects" className="page">
-      <Rule />
-      <SectionHead n="04" label="projects" title="Things I’ve built">
-        Side projects, with the receipts. Work commits live on a different account.
-      </SectionHead>
-      <div className="mt-16 space-y-28">
-        <Reveal><Rusty /></Reveal>
-        <Reveal><Bench /></Reveal>
-        <Reveal><Spacewind /></Reveal>
-        <Reveal>
-          <Figure caption="fig. 0 · the same equations as the hero, ray-traced at full resolution" href={links.renderer} hrefLabel="renderer">
-            <div className="relative aspect-[16/7] w-full bg-cover bg-center" style={{ backgroundImage: 'url(/media/blackhole-poster.jpg)' }}>
-              <img src="/media/blackhole.webp" alt="A ray-traced black hole with a thin glowing disk bent over and under its shadow." className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
-            </div>
-          </Figure>
-        </Reveal>
-      </div>
-      <div className="mt-24 grid gap-px border border-line bg-line md:grid-cols-3">
-        {more.map((m, i) => (
-          <Reveal key={m.name} delay={i * 0.08} className="bg-void p-6">
-            <a href={m.href} target="_blank" rel="noreferrer" className="group block">
-              <div className="label">{m.tag}</div>
-              <h4 className="display mt-3 text-[26px] leading-none">
-                {m.name} <span className="text-faint transition-colors group-hover:text-phos">↗</span>
-              </h4>
-              <p className="mt-3 text-[12.5px] leading-[1.8] text-dim">{m.body}</p>
-            </a>
-          </Reveal>
-        ))}
-      </div>
     </section>
   );
 }
@@ -407,7 +502,7 @@ function OpenSource() {
   return (
     <section id="open-source" className="page">
       <Rule />
-      <SectionHead n="05" label="open source" title="Merged upstream" />
+      <SectionHead n="06" label="open source" title="Merged upstream" />
       <div className="mt-12 md:grid md:grid-cols-12">
         <ul className="md:col-span-9 md:col-start-4">
           {upstream.map((u, i) => (
@@ -441,44 +536,190 @@ function OpenSource() {
   );
 }
 
+function MemoriesSection() {
+  return (
+    <section id="memories" className="page">
+      <Rule />
+      <div className="mb-10 flex items-baseline justify-between">
+        <div className="label">
+          <span className="text-phos">07</span> <span className="mx-1 text-faint">·</span> memories
+        </div>
+        <div className="text-[11px] text-faint">off the clock</div>
+      </div>
+      <Memories />
+    </section>
+  );
+}
+
 function Contact() {
   return (
-    <section id="contact" className="page pb-12">
+    <section id="contact" className="page">
       <Rule />
       <div className="mx-auto max-w-[760px] py-10 text-center">
-        <div className="label text-phos">contact</div>
-        <h2 className="display mt-6 text-[42px] leading-[1.05] sm:text-[64px]">
+        <h2 className="display text-[42px] leading-[1.05] sm:text-[64px]">
           Building something <em className="italic text-phos">interesting</em>?
           <br />
           My DMs are open.
         </h2>
         <div className="mt-10 flex flex-wrap justify-center gap-x-8 gap-y-3 text-[13px]">
-          <a className="link-u" href={links.linkedin} target="_blank" rel="noreferrer">→ linkedin</a>
-          <a className="link-u" href={links.github} target="_blank" rel="noreferrer">→ github</a>
-          <a className="link-u" href={links.email}>→ email</a>
+          <a className="link-u" href={links.linkedin} target="_blank" rel="noreferrer">
+            → linkedin
+          </a>
+          <a className="link-u" href={links.github} target="_blank" rel="noreferrer">
+            → github
+          </a>
+          <a className="link-u" href={links.email}>
+            → email
+          </a>
         </div>
       </div>
-      <footer className="mt-20 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-6 text-[11px] text-faint">
-        <span>© {new Date().getFullYear()} jaden fix</span>
-        <span>drawn in characters from the schwarzschild geodesic equation · 37.77°n 122.42°w</span>
-      </footer>
     </section>
   );
 }
 
-export default function App() {
+function Home() {
   return (
-    <div className="grain">
+    <main>
+      <Hero />
+      <Featured />
+      <Experience />
+      <Research />
+      <Projects />
+      <Writing />
+      <Tempera />
+      <OpenSource />
+      <MemoriesSection />
+      <Contact />
+    </main>
+  );
+}
+
+// ------------------------------------------------------------------ pages
+function PaperPage({ paper }: { paper: Paper }) {
+  const doc = paperDocs.find((d) => d.slug === paper.slug);
+  const i = papers.findIndex((p) => p.slug === paper.slug);
+  const next = papers[(i + 1) % papers.length];
+  return (
+    <main className="page pt-16">
+      <a href="#research" className="label link-u">
+        ← research
+      </a>
+      <div className="label mt-10 text-phos">{doc?.status || paper.kind}</div>
+      <motion.h1
+        key={paper.slug}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 1, ease: [0.2, 0.7, 0.2, 1] }}
+        className="display mt-4 max-w-[900px] text-[42px] leading-[1.04] sm:text-[60px]"
+      >
+        {doc?.title ?? paper.title}
+      </motion.h1>
+      <div className="mt-6 flex flex-wrap gap-2">
+        {paper.links.map((l) => (
+          <Chip key={l.label} name={l.label} href={l.href} />
+        ))}
+      </div>
+      <div className="mt-12">
+        <Demo Comp={paper.hero} h={520} />
+      </div>
+      {doc && (
+        <article className="mx-auto mt-16 max-w-[680px]">
+          <Markdown source={doc.body} />
+        </article>
+      )}
+      {paper.figures.map((f, k) => (
+        <Reveal key={f.title} className="mt-20">
+          <div className="mb-5 flex items-baseline gap-3">
+            <span className="label text-phos">fig. {k + 2}</span>
+            <h2 className="display text-[28px] leading-tight">{f.title}</h2>
+          </div>
+          <Demo Comp={f.Comp} h={420} />
+        </Reveal>
+      ))}
+      <a href={`#/papers/${next.slug}`} className="group mt-24 block border-t border-line pt-6">
+        <span className="label">next paper</span>
+        <span className="display mt-2 block text-[28px] transition-colors group-hover:text-phos">{next.title}</span>
+      </a>
+    </main>
+  );
+}
+
+function BlogIndex() {
+  return (
+    <main className="page pt-16">
+      <a href="#top" className="label link-u">
+        ← home
+      </a>
+      <h1 className="display mt-8 text-[52px] leading-none sm:text-[72px]">Notes</h1>
+      <p className="mt-4 max-w-[520px] text-[13px] leading-[1.85] text-dim">Short pieces on evals, agents, and the statistics underneath them.</p>
+      <ul className="mt-14">
+        {posts.map((p) => (
+          <li key={p.slug} className="border-t border-line">
+            <a href={`#/blog/${p.slug}`} className="group grid gap-2 py-7 sm:grid-cols-[150px_1fr] sm:gap-8">
+              <span className="text-[12px] text-faint">
+                {formatDate(p.date)}
+                {p.read && <span className="block">{p.read}</span>}
+              </span>
+              <span>
+                <span className="display block text-[30px] leading-tight transition-colors group-hover:text-phos">{p.title}</span>
+                <span className="mt-1.5 block text-[13px] leading-[1.8] text-dim">{p.summary}</span>
+              </span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </main>
+  );
+}
+
+function PostView({ post }: { post: Doc }) {
+  const i = posts.findIndex((p) => p.slug === post.slug);
+  const next = posts[(i + 1) % posts.length];
+  return (
+    <main className="page pt-16">
+      <article className="mx-auto max-w-[680px]">
+        <a href="#/blog" className="label link-u">
+          ← notes
+        </a>
+        <motion.h1
+          key={post.slug}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, ease: [0.2, 0.7, 0.2, 1] }}
+          className="display mt-8 text-[42px] leading-[1.04] sm:text-[58px]"
+        >
+          {post.title}
+        </motion.h1>
+        <div className="mt-5 text-[12px] text-faint">
+          {formatDate(post.date)} {post.read && <>· {post.read}</>}
+        </div>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1.2, delay: 0.3 }} className="mt-12">
+          <Markdown source={post.body} />
+        </motion.div>
+        {posts.length > 1 && (
+          <a href={`#/blog/${next.slug}`} className="group mt-20 block border-t border-line pt-6">
+            <span className="label">next</span>
+            <span className="display mt-2 block text-[26px] transition-colors group-hover:text-phos">{next.title}</span>
+          </a>
+        )}
+      </article>
+    </main>
+  );
+}
+
+export default function App() {
+  const route = useRoute();
+  let page: ReactNode = <Home />;
+  if (route.name === 'blog') page = <BlogIndex />;
+  if (route.name === 'post') page = <PostView post={route.post} />;
+  if (route.name === 'paper') page = <PaperPage paper={route.paper} />;
+  return (
+    <div className="grain min-h-screen">
       <Header />
-      <main>
-        <Hero />
-        <Work />
-        <Research />
-        <Tempera />
-        <Projects />
-        <OpenSource />
-        <Contact />
-      </main>
+      {page}
+      <Footer />
+      <CommandBar />
+      <Cursor />
     </div>
   );
 }

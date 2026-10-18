@@ -44,16 +44,10 @@ export const roles: Role[] = [
     body: 'Production agents for ERP, fraud and compliance work, deployed at banks and Fortune 500 companies in the cloud and on-prem. Wrote the company’s Go SDK.',
   },
   {
-    dates: 'Aug 2024 – Jul 2025',
-    org: 'Sturdy',
-    title: 'Engineer, contract',
-    body: 'An AI customer-intelligence platform, built in Go.',
-  },
-  {
     dates: '2024 – 2025',
     org: 'Cal Poly, San Luis Obispo',
     title: 'M.S.',
-    body: 'Came to software through economics and statistics. My undergrad thesis on forecasting bear markets won the Adam Smith Award.',
+    body: '',
   },
 ];
 

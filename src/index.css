@@ -39,3 +39,16 @@
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* pointer: an amber point and a slow ring that opens into [ ] over links */
+html.custom-cursor, html.custom-cursor * { cursor: none !important; }
+html.custom-cursor input[type='range'] { cursor: none !important; }
+.cursor-dot, .cursor-ring { position: fixed; left: 0; top: 0; pointer-events: none; z-index: 70; opacity: 0; transition: opacity 0.3s; }
+.cursor-dot { width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; background: #e8a96a; box-shadow: 0 0 10px 1px rgba(232,169,106,0.55); border-radius: 50%; }
+.cursor-ring { width: 30px; height: 30px; margin: -15px 0 0 -15px; }
+.cursor-ring > span { position: absolute; top: 0; bottom: 0; width: 50%; border: 1px solid rgba(220,214,200,0.35); transition: all 0.35s cubic-bezier(0.2,0.7,0.2,1); }
+.cursor-ring > span:first-child { left: 0; border-right: 0; border-radius: 15px 0 0 15px; }
+.cursor-ring > span:last-child { right: 0; border-left: 0; border-radius: 0 15px 15px 0; }
+.cursor-ring[data-hot='1'] > span { border-color: rgba(232,169,106,0.9); border-radius: 0; width: 7px; top: -2px; bottom: -2px; }
+.cursor-ring[data-hot='1'] > span:first-child { left: -8px; }
+.cursor-ring[data-hot='1'] > span:last-child { right: -8px; }
