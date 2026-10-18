@@ -69,7 +69,8 @@ const papers: Paper[] = [
     teaser:
       'A century of S&P 500 bull and bear regimes, read two ways: filtered, with only the data available at the time, and smoothed, with hindsight. Scrub through it, or jump to 1929, 1987 or 2008.',
     links: [
-      { label: 'pdf', href: THESIS_PDF },
+      { label: 'revised pdf', href: 'https://github.com/jadenfix/Predictive-Stochastic-Modeling-for-Financial-Markets-/blob/v2/v2/paper/Predictive_Stochastic_Modeling_v2.pdf' },
+      { label: 'award pdf', href: THESIS_PDF },
       { label: 'code', href: 'https://github.com/jadenfix/Predictive-Stochastic-Modeling-for-Financial-Markets-' },
     ],
     hero: RegimeExplorer,
