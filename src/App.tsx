@@ -1,5 +1,5 @@
-import { lazy, Suspense, useEffect, useState, type ComponentType, type LazyExoticComponent, type ReactNode } from 'react';
-import { motion } from 'framer-motion';
+import { lazy, Suspense, useEffect, useRef, useState, type ComponentType, type LazyExoticComponent, type ReactNode } from 'react';
+import { MotionConfig, motion } from 'framer-motion';
 import AsciiHole from './AsciiHole';
 import CommandBar from './CommandBar';
 import Cursor from './Cursor';
@@ -10,7 +10,10 @@ import WorkIndex from './WorkIndex';
 import { commits, links, roles, tempera, upstream } from './content';
 import { useScramble, useSfTime } from './hooks';
 import { formatDate, paperDocs, posts, type Doc } from './md';
-import { Chip, Reveal, Rule, SectionHead, Typed } from './ui';
+import { DUR, EASE } from './motion';
+import { useRecede } from './scroll';
+import { RouteVeil, ScrollProgress } from './Transitions';
+import { Chip, Decode, DemoNote, Readout, Reveal, Rule, SectionHead, Typed } from './ui';
 
 type Lazy = LazyExoticComponent<ComponentType>;
 
@@ -33,6 +36,7 @@ const SpacewindLab = demo('SpacewindLab');
 const ReplayDemo = demo('ReplayDemo');
 const MarketMakerDemo = demo('MarketMakerDemo');
 const InftyThinkDemo = demo('InftyThinkDemo');
+const SimulationDemo = demo('SimulationDemo');
 
 // ------------------------------------------------------------------ research
 type Paper = {
@@ -42,8 +46,12 @@ type Paper = {
   teaser: string;
   links: { label: string; href: string }[];
   hero: Lazy;
+  note: Note;
   figures: { title: string; Comp: Lazy }[];
 };
+
+/** what to do with a demo, and what it shows */
+type Note = { how: string; reveals: string };
 
 const THESIS_PDF =
   'https://github.com/jadenfix/Predictive-Stochastic-Modeling-for-Financial-Markets-/blob/main/Predictive_Stochastic_Modeling_for_Financial_Markets.pdf';
@@ -60,6 +68,11 @@ const papers: Paper[] = [
       { label: 'code', href: 'https://github.com/jadenfix/CreditAssignment' },
     ],
     hero: CreditSim,
+    note: {
+      how: 'watch rollouts collect, switch the scorer (outcome-only, branch-aware, hindsight, combined), drag p(unlock), run again.',
+      reveals:
+        'under outcome-only credit the learned policy stalls at the gates and succeeds 0.24 of the time, below the 0.79 prompted baseline; branch-aware and combined learn to unlock (0.98, 1.00), reproducing the paper’s Table 1.',
+    },
     figures: [],
   },
   {
@@ -74,6 +87,11 @@ const papers: Paper[] = [
       { label: 'code', href: 'https://github.com/jadenfix/Predictive-Stochastic-Modeling-for-Financial-Markets-' },
     ],
     hero: RegimeExplorer,
+    note: {
+      how: 'hover or drag across the chart to read any month, toggle filtered vs smoothed, jump to a crisis preset or drag to zoom, double-click to reset.',
+      reveals:
+        'smoothed probabilities look prescient because they use the future; filtered ones, the only ones you could have had in real time, react later, and the skill bars show no model beats knowing a bear market is already under way.',
+    },
     figures: [
       { title: 'Two regimes', Comp: RegimeDensities },
       { title: 'Every bear market since 1900', Comp: Episodes },
@@ -89,6 +107,11 @@ const papers: Paper[] = [
       'Can a critique tell you where a long trajectory went wrong, and can optimal transport carry that signal back to the right steps? Below, entropic Sinkhorn aligning a failed trajectory with its critique-edited target, computed in your browser.',
     links: [{ label: 'code', href: 'https://github.com/jadenfix/CreditAssignment-LongHorizon' }],
     hero: TransportDemo,
+    note: {
+      how: 'let it play through its phases, slide epsilon (blur) and alpha (time weight), toggle balanced vs unbalanced.',
+      reveals:
+        'how entropic transport routes a critique’s correction onto specific steps of a trajectory; on the repo’s barely trained latents the critic is still near uniform, so the signal hardly concentrates yet.',
+    },
     figures: [],
   },
 ];
@@ -128,18 +151,56 @@ function useRoute() {
 }
 
 // ------------------------------------------------------------------ chrome
-function NavLink({ href, label }: { href: string; label: string }) {
+function NavLink({ href, label, active = false }: { href: string; label: string; active?: boolean }) {
   const [text, scramble] = useScramble(label);
   return (
-    <a href={href} onMouseEnter={scramble} onFocus={scramble} className="transition-colors hover:text-bone">
+    <a
+      href={href}
+      onMouseEnter={scramble}
+      onFocus={scramble}
+      aria-current={active ? 'location' : undefined}
+      className={`relative transition-colors duration-short hover:text-bone ${active ? 'text-bone' : ''}`}
+    >
       {text}
+      {/* the section you're in: a short amber underline grows out of the middle */}
+      <span
+        aria-hidden
+        className={`absolute inset-x-0 -bottom-1.5 h-px origin-center bg-phos transition-transform duration-base ease-out ${active ? 'scale-x-100' : 'scale-x-0'}`}
+      />
     </a>
   );
 }
 
-function Header() {
+const NAV_SECTIONS = ['research', 'projects', 'experience', 'writing'];
+
+/** Which top-level section is crossing the middle of the screen (home only). */
+function useActiveSection(pageKey: string) {
+  const [active, setActive] = useState<string | null>(null);
+  useEffect(() => {
+    if (pageKey !== 'home') return;
+    const els = NAV_SECTIONS.map((id) => document.getElementById(id)).filter((e): e is HTMLElement => !!e);
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) setActive(e.target.id);
+          else setActive((a) => (a === e.target.id ? null : a));
+        }
+      },
+      { rootMargin: '-45% 0px -54% 0px' },
+    );
+    els.forEach((e) => io.observe(e));
+    return () => {
+      io.disconnect();
+      setActive(null);
+    };
+  }, [pageKey]);
+  return active;
+}
+
+function Header({ pageKey }: { pageKey: string }) {
   const [scrolled, setScrolled] = useState(false);
   const time = useSfTime();
+  const active = useActiveSection(pageKey);
   useEffect(() => {
     const on = () => setScrolled(window.scrollY > 8);
     on();
@@ -154,15 +215,15 @@ function Header() {
           jaden fix
         </a>
         <nav className="hidden items-center gap-6 text-dim md:flex">
-          <NavLink href="#research" label="research" />
-          <NavLink href="#projects" label="projects" />
-          <NavLink href="#experience" label="experience" />
-          <NavLink href="#/blog" label="writing" />
+          <NavLink href="#research" label="research" active={active === 'research'} />
+          <NavLink href="#projects" label="projects" active={active === 'projects'} />
+          <NavLink href="#experience" label="experience" active={active === 'experience'} />
+          <NavLink href="#/blog" label="writing" active={active === 'writing' || pageKey === 'blog' || pageKey.startsWith('post:')} />
         </nav>
         <div className="flex items-center gap-4 text-faint">
           <span className="hidden sm:inline" title="Local time in San Francisco">
             <span className="mr-1.5 inline-block h-1.5 w-1.5 translate-y-[-1px] rounded-full bg-phos/80" />
-            sf {time}
+            sf <Readout key={time} value={time} />
           </span>
           <button
             onClick={() => window.dispatchEvent(new Event('open-command-bar'))}
@@ -173,6 +234,7 @@ function Header() {
           </button>
         </div>
       </div>
+      <ScrollProgress show={scrolled} />
     </header>
   );
 }
@@ -198,14 +260,18 @@ function Demo({ Comp, h = 420 }: { Comp: Lazy; h?: number }) {
 function Hero() {
   const [stage, setStage] = useState(0);
   const [view, setView] = useState<'ascii' | 'render'>('ascii');
+  const sky = useRef<HTMLDivElement>(null);
+  useRecede(sky);
   return (
     <section id="top" className="page pt-6 sm:pt-10">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 2.4, ease: 'easeOut' }} className="relative">
+      {/* the sky sits a layer back: as you scroll it drifts slower than the page, shrinks a touch and dims */}
+      <div ref={sky} className="will-change-transform">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: DUR.develop, ease: EASE.out }} className="relative">
         <div className={`transition-opacity duration-1000 ${view === 'ascii' ? 'opacity-100' : 'pointer-events-none opacity-0'}`}>
-          <AsciiHole />
+          <AsciiHole reveal="/media/hero-smooth.webp" />
         </div>
         {view === 'render' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1.2 }} className="absolute inset-0 flex items-center justify-center">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: DUR.slow, ease: EASE.out }} className="absolute inset-0 flex items-center justify-center">
             <img src="/media/blackhole.webp" alt="The same black hole, ray-traced at full resolution." className="max-h-full w-full object-contain" />
           </motion.div>
         )}
@@ -217,8 +283,9 @@ function Hero() {
           ))}
         </div>
       </motion.div>
+      </div>
 
-      <div className="mx-auto mt-4 max-w-[760px] text-center">
+      <div className="relative z-[1] mx-auto mt-4 max-w-[760px] text-center">
         <h1 className="display text-[56px] leading-none sm:text-[96px]">
           <Typed text="Jaden Fix" speed={95} delay={900} onDone={() => setStage(1)} />
         </h1>
@@ -226,11 +293,11 @@ function Hero() {
           {stage >= 1 && <Typed text="software engineer · san francisco" speed={38} cursor onDone={() => setStage(2)} />}
           {stage < 1 && <span className="invisible">software engineer · san francisco</span>}
         </div>
-        <motion.p initial={{ opacity: 0 }} animate={stage >= 2 ? { opacity: 1 } : {}} transition={{ duration: 1.4 }} className="mt-6 text-[13px] text-dim">
+        <motion.p initial={{ opacity: 0 }} animate={stage >= 2 ? { opacity: 1 } : {}} transition={{ duration: DUR.slow, ease: EASE.out }} className="mt-6 text-[13px] text-dim">
           platform &amp; applied ai at <a className="link-u text-bone" href="https://www.afterquery.com" target="_blank" rel="noreferrer">afterquery</a> · previously scale ai, roe (yc)
         </motion.p>
-        <motion.p initial={{ opacity: 0 }} animate={stage >= 2 ? { opacity: 1 } : {}} transition={{ duration: 1.4, delay: 0.6 }} className="mt-10 text-[11px] text-faint">
-          move your pointer over the sky: it bends the light too
+        <motion.p initial={{ opacity: 0 }} animate={stage >= 2 ? { opacity: 1 } : {}} transition={{ duration: DUR.slow, ease: EASE.out, delay: 0.6 }} className="mt-10 text-[11px] text-faint">
+          move your cursor over the black hole: it reveals the ray-traced view underneath, and bends the starlight around it
         </motion.p>
       </div>
     </section>
@@ -239,7 +306,7 @@ function Hero() {
 
 function Index() {
   return (
-    <section id="work" className="page mt-16">
+    <section id="work" className="page relative z-[1] mt-16">
       <div className="mb-5 flex items-baseline justify-between">
         <div className="label">
           <span className="text-phos">index</span> · papers and projects, each with a live demo below
@@ -272,6 +339,10 @@ function Rusty() {
         </div>
       </div>
       <div className="lg:col-span-8">
+        <DemoNote
+          how="let it play or pick a session (arrow keys work)."
+          reveals="real recorded sessions of the agent fixing bugs, running goals to verified completion, and compacting context."
+        />
         <RustyPlayer auto />
       </div>
     </div>
@@ -285,11 +356,10 @@ function Experience() {
       <SectionHead n="03" label="experience" title="Where I’ve worked" />
       <div className="mt-12 md:grid md:grid-cols-12">
         <ol className="md:col-span-9 md:col-start-4">
-          {roles.map((r, i) => (
-            <Reveal key={r.org} delay={i * 0.06}>
-              <li className="grid gap-2 border-t border-line py-6 sm:grid-cols-[170px_1fr] sm:gap-8">
+          {roles.map((r) => (
+            <Reveal as="li" key={r.org} className="grid gap-2 border-t border-line py-6 sm:grid-cols-[170px_1fr] sm:gap-8">
                 <div className="text-[12px] text-dim">
-                  {r.dates}
+                  <Readout value={r.dates} />
                   {r.current && <span className="ml-2 text-phos">● now</span>}
                 </div>
                 <div>
@@ -308,7 +378,6 @@ function Experience() {
                   </div>
                   {r.body && <p className="mt-2 max-w-[600px] text-[13px] leading-[1.85] text-dim">{r.body}</p>}
                 </div>
-              </li>
             </Reveal>
           ))}
         </ol>
@@ -331,12 +400,13 @@ function PaperBlock({ p, i }: { p: Paper; i: number }) {
           {p.links.map((l) => (
             <Chip key={l.label} name={l.label} href={l.href} />
           ))}
-          <a href={`#/papers/${p.slug}`} className="chip border-phos/60 text-phos hover:bg-phos/10">
+          <a href={`#/papers/${p.slug}`} className="chip border-phos/60 text-phos">
             paper page →
           </a>
         </div>
       </div>
       <p className="mb-8 mt-4 max-w-[720px] text-[13px] leading-[1.85] text-dim">{p.teaser}</p>
+      <DemoNote {...p.note} />
       <Demo Comp={p.hero} h={520} />
     </Reveal>
   );
@@ -356,7 +426,7 @@ function Research() {
   );
 }
 
-const projects: { id: string; name: string; tag: string; href: string; body: string; Comp: Lazy; h: number }[] = [
+const projects: { id: string; name: string; tag: string; href: string; body: string; Comp: Lazy; h: number; note: Note }[] = [
   {
     id: 'fullstack-bench',
     name: 'FullStack-Bench',
@@ -364,6 +434,10 @@ const projects: { id: string; name: string; tag: string; href: string; body: str
     href: 'https://github.com/jadenfix/FullStack-Bench',
     body: 'Can a coding agent ship a full-stack change without paging anyone? Agents work on SimCloud, a simulated cloud with synthetic users on prod and a hash-chained incident log, and are graded on the whole episode. Each square is one real run; switch views and watch passing runs turn out to be unsafe.',
     Comp: BenchMatrix,
+    note: {
+      how: 'switch final state, whole episode and safe success; hover or tap a square for that run’s checks.',
+      reveals: '38 of 83 graded runs that look finished under final-state grading fail the whole-episode safety check.',
+    },
     h: 420,
   },
   {
@@ -373,7 +447,24 @@ const projects: { id: string; name: string; tag: string; href: string; body: str
     href: 'https://github.com/jadenfix/space-simulation-engine',
     body: 'A dependency-free engine for asking whether a spacecraft can sail on sunlight, solar wind and gravity: Boris-pushed plasma, Parker solar wind, Kerr geodesics, particle-in-cell. Its assurance run passes about 233,000 checks. Below, the same physics in real time.',
     Comp: SpacewindLab,
+    note: {
+      how: 'pick a mode; in magnetosphere drag to rotate and set energy, pitch angle and particle type; in solar wind change the coronal temperature and toggle the sails.',
+      reveals: 'trapped particles gyrate, bounce and drift with periods that match theory live; a hotter corona gives a faster wind and a looser spiral; sails spiral a craft outward.',
+    },
     h: 560,
+  },
+  {
+    id: 'simulation-theory',
+    name: 'simulation-theory',
+    tag: 'theory · python',
+    href: 'https://github.com/jadenfix/simulation-theory',
+    body: 'What could you actually learn about whether the world is simulated? If a simulation reproduces the same observable law as ordinary physics, nothing: the Bayes factor is exactly 1. The repo maps where that boundary bends, with typed theorems, model results and finite checks. Below, run the experiments yourself.',
+    Comp: SimulationDemo,
+    note: {
+      how: 'on the evidence tab choose same law, biased or coarsened and watch the log Bayes factor; on the bell test tab replay the real Delft trials.',
+      reveals: 'a simulation with the same observable law never accumulates evidence; a restricted one is caught at its KL rate; the real Bell data pass the S = 2 bound that no local classical simulation can.',
+    },
+    h: 600,
   },
   {
     id: 'replaykit',
@@ -382,6 +473,10 @@ const projects: { id: string; name: string; tag: string; href: string; body: str
     href: 'https://github.com/jadenfix/ReplayKit',
     body: 'Time-travel debugging for agent runs. Fork any step, patch it, replay only what’s downstream, and diff against the original.',
     Comp: ReplayDemo,
+    note: {
+      how: 'let the tour run, or pick a preset patch or click a span to fork it, then read the plan and the diff.',
+      reveals: 'only downstream spans re-run while the rest stay cached, and ReplayKit’s real limits (blocked executors) show plainly.',
+    },
     h: 560,
   },
   {
@@ -391,6 +486,10 @@ const projects: { id: string; name: string; tag: string; href: string; body: str
     href: 'https://github.com/jadenfix/DRL4MM',
     body: 'A TD3 market maker, trained with the repo’s own code on a day of real LTC/USDT order flow, quoting live in your browser against a FIFO limit order book next to a fixed-midpoint baseline. It matches the Python simulator fill for fill. It does not beat the baseline yet, and the demo says so.',
     Comp: MarketMakerDemo,
+    note: {
+      how: 'toggle the trained TD3 policy vs fixed midpoint quotes, pause or step, move to the next slice.',
+      reveals: 'a trained TD3 market maker quoting on real LTC/USDT order flow, matching the Python simulator fill for fill; it does not beat tuned fixed quotes yet.',
+    },
     h: 820,
   },
   {
@@ -400,6 +499,10 @@ const projects: { id: string; name: string; tag: string; href: string; body: str
     href: 'https://github.com/jadenfix/InftyThink',
     body: 'Reason in bounded segments, fold each into a short summary, and carry only the summaries forward, so peak context is capped by the question plus a few summaries. Below, real traces from the repo’s own pipeline on three GSM8K problems, next to plain chain-of-thought.',
     Comp: InftyThinkDemo,
+    note: {
+      how: 'pick a problem and watch both lanes stream.',
+      reveals: 'InftyThink keeps its context bounded by short summaries while chain-of-thought’s context grows with the trace; on these short problems plain chain-of-thought is actually shorter, and summaries from a small untrained model ramble.',
+    },
     h: 620,
   },
 ];
@@ -431,6 +534,7 @@ function Projects() {
                 </div>
               </div>
             </div>
+            <DemoNote {...p.note} />
             <Demo Comp={p.Comp} h={p.h} />
           </Reveal>
         ))}
@@ -464,9 +568,8 @@ function Writing() {
       <SectionHead n="04" label="writing" title="Notes" />
       <div className="mt-12 md:grid md:grid-cols-12">
         <ul className="md:col-span-9 md:col-start-4">
-          {posts.map((p, i) => (
-            <Reveal key={p.slug} delay={i * 0.08}>
-              <li className="border-t border-line">
+          {posts.map((p) => (
+            <Reveal as="li" key={p.slug} className="border-t border-line">
                 <a href={`#/blog/${p.slug}`} className="group grid gap-2 py-6 sm:grid-cols-[130px_1fr] sm:gap-8">
                   <span className="text-[12px] text-faint">{formatDate(p.date)}</span>
                   <span>
@@ -474,7 +577,6 @@ function Writing() {
                     <span className="mt-1.5 block text-[13px] leading-[1.8] text-dim">{p.summary}</span>
                   </span>
                 </a>
-              </li>
             </Reveal>
           ))}
         </ul>
@@ -493,9 +595,9 @@ function Tempera() {
       </SectionHead>
       <div className="mt-14 grid gap-px border border-line bg-line sm:grid-cols-2 lg:grid-cols-3">
         {tempera.map((l, i) => (
-          <Reveal key={l.label} delay={(i % 3) * 0.08} className={`bg-void p-6 ${i === tempera.length - 1 ? 'sm:col-span-2 lg:col-span-1' : ''}`}>
+          <Reveal key={l.label} className={`bg-void p-6 ${i === tempera.length - 1 ? 'sm:col-span-2 lg:col-span-1' : ''}`}>
             <div className="label">
-              <span className="text-phos">{String(i + 1).padStart(2, '0')}</span> {l.label.toLowerCase()}
+              <Readout value={String(i + 1).padStart(2, '0')} className="text-phos" /> {l.label.toLowerCase()}
             </div>
             <div className="mt-4 flex flex-wrap gap-1.5">
               {l.items.map((it) => (
@@ -522,15 +624,13 @@ function OpenSource() {
       <SectionHead n="06" label="open source" title="Merged upstream" />
       <div className="mt-12 md:grid md:grid-cols-12">
         <ul className="md:col-span-9 md:col-start-4">
-          {upstream.map((u, i) => (
-            <Reveal key={u.href} delay={i * 0.05}>
-              <li className="border-t border-line">
+          {upstream.map((u) => (
+            <Reveal as="li" key={u.href} className="border-t border-line">
                 <a href={u.href} target="_blank" rel="noreferrer" className="group grid gap-1 py-4 sm:grid-cols-[250px_1fr_auto] sm:items-baseline sm:gap-6">
                   <span className="text-[12px] text-dim">{u.repo}</span>
                   <span className="text-[13px] text-bone">{u.title}</span>
                   <span className="text-[11px] text-faint transition-colors group-hover:text-phos">merged ↗</span>
                 </a>
-              </li>
             </Reveal>
           ))}
         </ul>
@@ -573,12 +673,14 @@ function Contact() {
     <section id="contact" className="page">
       <Rule />
       <div className="mx-auto max-w-[760px] py-10 text-center">
-        <h2 className="display text-[42px] leading-[1.05] sm:text-[64px]">
-          Building something <em className="italic text-phos">interesting</em>?
-          <br />
-          My DMs are open.
-        </h2>
-        <div className="mt-10 flex flex-wrap justify-center gap-x-8 gap-y-3 text-[13px]">
+        <Reveal>
+          <h2 className="display text-[42px] leading-[1.05] sm:text-[64px]">
+            Building something <em className="italic text-phos">interesting</em>?
+            <br />
+            My DMs are open.
+          </h2>
+        </Reveal>
+        <Reveal delay={0.25} className="mt-10 flex flex-wrap justify-center gap-x-8 gap-y-3 text-[13px]">
           <a className="link-u" href={links.linkedin} target="_blank" rel="noreferrer">
             → linkedin
           </a>
@@ -588,7 +690,7 @@ function Contact() {
           <a className="link-u" href={links.email}>
             → email
           </a>
-        </div>
+        </Reveal>
       </div>
     </section>
   );
@@ -622,23 +724,18 @@ function PaperPage({ paper }: { paper: Paper }) {
         ← research
       </a>
       <div className="label mt-10 text-phos">{doc?.status || paper.kind}</div>
-      <motion.h1
-        key={paper.slug}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 1, ease: [0.2, 0.7, 0.2, 1] }}
-        className="display mt-4 max-w-[900px] text-[42px] leading-[1.04] sm:text-[60px]"
-      >
-        {doc?.title ?? paper.title}
-      </motion.h1>
-      <div className="mt-6 flex flex-wrap gap-2">
+      <h1 className="display mt-4 max-w-[900px] text-[42px] leading-[1.04] sm:text-[60px]">
+        <Decode key={paper.slug} text={doc?.title ?? paper.title} delay={0.3} />
+      </h1>
+      <Reveal delay={0.4} className="mt-6 flex flex-wrap gap-2">
         {paper.links.map((l) => (
           <Chip key={l.label} name={l.label} href={l.href} />
         ))}
-      </div>
-      <div className="mt-12">
+      </Reveal>
+      <Reveal delay={0.5} className="mt-12">
+        <DemoNote {...paper.note} />
         <Demo Comp={paper.hero} h={520} />
-      </div>
+      </Reveal>
       {doc && (
         <article className="mx-auto mt-16 max-w-[680px]">
           <Markdown source={doc.body} />
@@ -667,11 +764,15 @@ function BlogIndex() {
       <a href="#top" className="label link-u">
         ← home
       </a>
-      <h1 className="display mt-8 text-[52px] leading-none sm:text-[72px]">Notes</h1>
-      <p className="mt-4 max-w-[520px] text-[13px] leading-[1.85] text-dim">Short pieces on evals, agents, and the statistics underneath them.</p>
+      <h1 className="display mt-8 text-[52px] leading-none sm:text-[72px]">
+        <Decode text="Notes" delay={0.3} speed={60} />
+      </h1>
+      <Reveal delay={0.35}>
+        <p className="mt-4 max-w-[520px] text-[13px] leading-[1.85] text-dim">Short pieces on evals, agents, and the statistics underneath them.</p>
+      </Reveal>
       <ul className="mt-14">
         {posts.map((p) => (
-          <li key={p.slug} className="border-t border-line">
+          <Reveal as="li" delay={0.4} key={p.slug} className="border-t border-line">
             <a href={`#/blog/${p.slug}`} className="group grid gap-2 py-7 sm:grid-cols-[150px_1fr] sm:gap-8">
               <span className="text-[12px] text-faint">
                 {formatDate(p.date)}
@@ -682,7 +783,7 @@ function BlogIndex() {
                 <span className="mt-1.5 block text-[13px] leading-[1.8] text-dim">{p.summary}</span>
               </span>
             </a>
-          </li>
+          </Reveal>
         ))}
       </ul>
     </main>
@@ -698,21 +799,15 @@ function PostView({ post }: { post: Doc }) {
         <a href="#/blog" className="label link-u">
           ← notes
         </a>
-        <motion.h1
-          key={post.slug}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, ease: [0.2, 0.7, 0.2, 1] }}
-          className="display mt-8 text-[42px] leading-[1.04] sm:text-[58px]"
-        >
-          {post.title}
-        </motion.h1>
-        <div className="mt-5 text-[12px] text-faint">
+        <h1 className="display mt-8 text-[42px] leading-[1.04] sm:text-[58px]">
+          <Decode key={post.slug} text={post.title} delay={0.3} />
+        </h1>
+        <Reveal delay={0.4} className="mt-5 text-[12px] text-faint">
           {formatDate(post.date)} {post.read && <>· {post.read}</>}
-        </div>
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1.2, delay: 0.3 }} className="mt-12">
+        </Reveal>
+        <Reveal key={post.slug} delay={0.55} className="mt-12">
           <Markdown source={post.body} />
-        </motion.div>
+        </Reveal>
         {posts.length > 1 && (
           <a href={`#/blog/${next.slug}`} className="group mt-20 block border-t border-line pt-6">
             <span className="label">next</span>
@@ -727,16 +822,30 @@ function PostView({ post }: { post: Doc }) {
 export default function App() {
   const route = useRoute();
   let page: ReactNode = <Home />;
-  if (route.name === 'blog') page = <BlogIndex />;
-  if (route.name === 'post') page = <PostView post={route.post} />;
-  if (route.name === 'paper') page = <PaperPage paper={route.paper} />;
+  let pageKey = 'home';
+  if (route.name === 'blog') {
+    page = <BlogIndex />;
+    pageKey = 'blog';
+  }
+  if (route.name === 'post') {
+    page = <PostView post={route.post} />;
+    pageKey = `post:${route.post.slug}`;
+  }
+  if (route.name === 'paper') {
+    page = <PaperPage paper={route.paper} />;
+    pageKey = `paper:${route.paper.slug}`;
+  }
   return (
-    <div className="grain min-h-screen">
-      <Header />
-      {page}
-      <Footer />
-      <CommandBar />
-      <Cursor />
-    </div>
+    // framer-motion follows the OS reduced-motion setting everywhere
+    <MotionConfig reducedMotion="user">
+      <div className="grain min-h-screen">
+        <Header pageKey={pageKey} />
+        <div key={pageKey}>{page}</div>
+        <Footer />
+        <CommandBar />
+        <Cursor />
+        <RouteVeil pageKey={pageKey} />
+      </div>
+    </MotionConfig>
   );
 }

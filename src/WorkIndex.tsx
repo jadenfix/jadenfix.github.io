@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { motion, useInView } from 'framer-motion';
+import { reducedMotion } from './motion';
+import { useReveal } from './scroll';
+import { Readout } from './ui';
 
 // The opening index: every paper and project on one screen, each with a tiny
 // character animation of what its demo does further down the page.
@@ -89,6 +91,20 @@ const frames: Record<string, Frame> = {
     }
     return join(g);
   },
+  // a log Bayes factor that wanders at zero, then drifts once the laws differ
+  simulation: (t) => {
+    const g = blank();
+    for (let x = 0; x < W; x++) put(g, x, 1, '·');
+    const phase = t % 10;
+    for (let x = 0; x < W; x++) {
+      const u = t * 2 - (W - x) * 0.35;
+      const walk = Math.sin(u * 1.7) * 0.5 + Math.sin(u * 0.63) * 0.4;
+      const drift = phase > 5 ? -((x / W) * (phase - 5)) * 0.45 : 0;
+      put(g, x, 1 + walk + drift, x === W - 1 ? '●' : '∙');
+    }
+    put(g, 0, 0, phase > 5 ? 'Δ' : '=');
+    return join(g);
+  },
   // a span tree forking at one step and replaying downstream
   replay: (t) => {
     const g = blank();
@@ -135,63 +151,89 @@ const rows: Row[] = [
   { key: 'transport', n: '04', name: 'critique transport', kind: 'research', line: 'Sinkhorn on real model latents', href: '#critique-transport' },
   { key: 'bench', n: '05', name: 'FullStack-Bench', kind: 'benchmark', line: 'runs that passed, then turned out unsafe', href: '#fullstack-bench' },
   { key: 'spacewind', n: '06', name: 'Spacewind', kind: 'physics', line: 'radiation belts, solar wind, black holes', href: '#spacewind' },
-  { key: 'replay', n: '07', name: 'ReplayKit', kind: 'debugger', line: 'fork an agent run, replay downstream', href: '#replaykit' },
-  { key: 'mm', n: '08', name: 'DRL4MM', kind: 'reinforcement learning', line: 'a TD3 market maker on real order flow', href: '#drl4mm' },
-  { key: 'infty', n: '09', name: 'InftyThink', kind: 'reasoning', line: 'bounded-context reasoning, real traces', href: '#inftythink' },
+  { key: 'simulation', n: '07', name: 'simulation-theory', kind: 'theory', line: 'can you tell if a world is simulated?', href: '#simulation-theory' },
+  { key: 'replay', n: '08', name: 'ReplayKit', kind: 'debugger', line: 'fork an agent run, replay downstream', href: '#replaykit' },
+  { key: 'mm', n: '09', name: 'DRL4MM', kind: 'reinforcement learning', line: 'a TD3 market maker on real order flow', href: '#drl4mm' },
+  { key: 'infty', n: '10', name: 'InftyThink', kind: 'reasoning', line: 'bounded-context reasoning, real traces', href: '#inftythink' },
 ];
 
-function Preview({ k, active, t }: { k: string; active: boolean; t: number }) {
-  const lines = frames[k](t);
+function IndexRow({ r, i, hot, setHot, pre }: { r: Row; i: number; hot: boolean; setHot: (k: string | null) => void; pre: (el: HTMLPreElement | null) => void }) {
+  const ref = useRef<HTMLAnchorElement>(null);
+  useReveal(ref);
   return (
-    <pre aria-hidden className={`m-0 select-none text-[11px] leading-[1.25] transition-colors duration-500 ${active ? 'text-phos' : 'text-faint'}`}>
-      {lines.join('\n')}
-    </pre>
+    <a
+      ref={ref}
+      href={r.href}
+      data-from="left"
+      data-hot={hot ? '1' : undefined}
+      // mouse only: on touch a tap would leave the row lit
+      onPointerEnter={(e) => e.pointerType === 'mouse' && setHot(r.key)}
+      onPointerLeave={(e) => e.pointerType === 'mouse' && setHot(null)}
+      onFocus={() => setHot(r.key)}
+      onBlur={() => setHot(null)}
+      className={`reveal row group relative grid items-center gap-x-6 gap-y-2 px-1 py-3 sm:grid-cols-[34px_1fr_auto] md:grid-cols-[34px_220px_1fr_auto] ${
+        i ? 'border-t border-line/70' : ''
+      } transition-colors hover:bg-panel`}
+    >
+      <span aria-hidden className="row-tick absolute bottom-3 left-0 top-3 w-px origin-bottom bg-phos" />
+      <Readout value={r.n} className={`hidden text-[11px] transition-colors sm:block ${hot ? 'text-phos' : 'text-faint'}`} />
+      <span>
+        <span className={`row-name display text-[24px] leading-tight ${hot ? 'text-phos' : 'text-bone'}`}>{r.name}</span>
+        <span className="block text-[11px] text-faint">{r.kind}</span>
+      </span>
+      <span className={`hidden text-[12.5px] transition-colors md:block ${hot ? 'text-bone' : 'text-dim'}`}>{r.line}</span>
+      <span className="flex items-center gap-4">
+        <pre ref={pre} aria-hidden className={`m-0 select-none text-[11px] leading-[1.25] transition-colors duration-short ${hot ? 'text-phos' : 'text-faint'}`}>
+          {frames[r.key](0).join('\n')}
+        </pre>
+        <span aria-hidden className={`text-[12px] transition-[transform,color] duration-short ${hot ? 'translate-x-1 text-phos' : 'text-faint'}`}>→</span>
+      </span>
+    </a>
   );
 }
 
 export default function WorkIndex() {
   const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { margin: '0px' });
-  const [t, setT] = useState(0);
+  const pres = useRef<(HTMLPreElement | null)[]>([]);
   const [hot, setHot] = useState<string | null>(null);
 
+  // the little animations write straight into their <pre>s, about nine times a
+  // second, and only while the index is on screen: no React work per frame
   useEffect(() => {
-    if (!inView || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const start = performance.now() - t * 1000;
-    const id = window.setInterval(() => setT((performance.now() - start) / 1000), 110);
-    return () => window.clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inView]);
+    if (reducedMotion()) return;
+    let raf = 0;
+    let last = 0;
+    let t = 0;
+    let visible = false;
+    const frame = (now: number) => {
+      if (now - last >= 110) {
+        t += last ? Math.min(0.25, (now - last) / 1000) : 0;
+        last = now;
+        rows.forEach((r, i) => {
+          const el = pres.current[i];
+          if (el) el.textContent = frames[r.key](t).join('\n');
+        });
+      }
+      raf = requestAnimationFrame(frame);
+    };
+    const io = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting === visible) return;
+      visible = e.isIntersecting;
+      cancelAnimationFrame(raf);
+      last = 0;
+      if (visible) raf = requestAnimationFrame(frame);
+    });
+    io.observe(ref.current!);
+    return () => {
+      io.disconnect();
+      cancelAnimationFrame(raf);
+    };
+  }, []);
 
   return (
     <div ref={ref} className="border-y border-line">
       {rows.map((r, i) => (
-        <motion.a
-          key={r.key}
-          href={r.href}
-          onMouseEnter={() => setHot(r.key)}
-          onMouseLeave={() => setHot(null)}
-          onFocus={() => setHot(r.key)}
-          onBlur={() => setHot(null)}
-          initial={{ opacity: 0, x: -6 }}
-          whileInView={{ opacity: 1, x: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.05 * i }}
-          className={`group grid items-center gap-x-6 gap-y-2 px-1 py-3 sm:grid-cols-[34px_1fr_auto] md:grid-cols-[34px_220px_1fr_auto] ${
-            i ? 'border-t border-line/70' : ''
-          } transition-colors hover:bg-panel`}
-        >
-          <span className="hidden text-[11px] text-faint sm:block">{r.n}</span>
-          <span>
-            <span className={`display block text-[24px] leading-tight transition-colors ${hot === r.key ? 'text-phos' : 'text-bone'}`}>{r.name}</span>
-            <span className="text-[11px] text-faint">{r.kind}</span>
-          </span>
-          <span className="hidden text-[12.5px] text-dim md:block">{r.line}</span>
-          <span className="flex items-center gap-4">
-            <Preview k={r.key} active={hot === r.key} t={t} />
-            <span className={`text-[12px] transition-transform ${hot === r.key ? 'translate-x-1 text-phos' : 'text-faint'}`}>→</span>
-          </span>
-        </motion.a>
+        <IndexRow key={r.key} r={r} i={i} hot={hot === r.key} setHot={setHot} pre={(el) => void (pres.current[i] = el)} />
       ))}
     </div>
   );

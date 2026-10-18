@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { links } from './content';
+import { DUR, EASE } from './motion';
 
 type Cmd = { name: string; hint: string; run: () => string | void };
 
@@ -24,6 +25,7 @@ export default function CommandBar() {
       { name: 'tempera', hint: 'the agent platform', run: jump('tempera') },
       { name: 'rusty', hint: 'watch the coding agent work', run: jump('rusty') },
       { name: 'projects', hint: 'everything else', run: jump('projects') },
+      { name: 'simulation', hint: 'is this world simulated?', run: jump('simulation-theory') },
       { name: 'experience', hint: 'where I’ve worked', run: jump('experience') },
       { name: 'memories', hint: 'away from the keyboard', run: jump('memories') },
       { name: 'contact', hint: 'say hello', run: jump('contact') },
@@ -80,7 +82,7 @@ export default function CommandBar() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.25 }}
+          transition={{ duration: DUR.micro + 0.07 }}
           onMouseDown={(e) => e.target === e.currentTarget && setOpen(false)}
           role="dialog"
           aria-label="Navigate the page"
@@ -89,7 +91,7 @@ export default function CommandBar() {
             initial={{ y: 8, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 6, opacity: 0 }}
-            transition={{ duration: 0.3, ease: [0.2, 0.7, 0.2, 1] }}
+            transition={{ duration: DUR.short, ease: EASE.crisp }}
             className="w-full max-w-[520px] border border-line bg-panel shadow-[0_30px_80px_-30px_rgba(0,0,0,0.8)]"
           >
             <div className="flex items-center gap-2 border-b border-line px-4 py-3 text-[13px]">

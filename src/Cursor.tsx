@@ -21,6 +21,8 @@ export default function Cursor() {
     let hot = false;
     let down = false;
     let raf = 0;
+    let last = 0;
+    let sc = 1;
     let shown = false;
 
     const move = (e: PointerEvent) => {
@@ -39,24 +41,40 @@ export default function Cursor() {
         hot = isHot;
         ring.current!.dataset.hot = hot ? '1' : '';
       }
+      wake();
     };
     const leave = () => {
       shown = false;
       dot.current!.style.opacity = '0';
       ring.current!.style.opacity = '0';
     };
-    const press = () => (down = true);
-    const release = () => (down = false);
-
-    const tick = () => {
-      rx += (x - rx) * 0.16;
-      ry += (y - ry) * 0.16;
-      dot.current!.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-      const s = down ? 0.8 : 1;
-      ring.current!.style.transform = `translate3d(${rx}px, ${ry}px, 0) scale(${s})`;
-      raf = requestAnimationFrame(tick);
+    const press = () => {
+      down = true;
+      wake();
     };
-    raf = requestAnimationFrame(tick);
+    const release = () => {
+      down = false;
+      wake();
+    };
+
+    // runs only while the ring is still catching up; a resting pointer costs nothing
+    const tick = (now: number) => {
+      const k = 1 - Math.pow(1 - 0.16, Math.min(4, (now - (last || now - 16.7)) / 16.7));
+      last = now;
+      rx += (x - rx) * k;
+      ry += (y - ry) * k;
+      sc += ((down ? 0.8 : 1) - sc) * 0.3;
+      dot.current!.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+      ring.current!.style.transform = `translate3d(${rx.toFixed(2)}px, ${ry.toFixed(2)}px, 0) scale(${sc.toFixed(3)})`;
+      if (Math.abs(x - rx) + Math.abs(y - ry) > 0.1 || Math.abs((down ? 0.8 : 1) - sc) > 0.002) raf = requestAnimationFrame(tick);
+      else raf = 0;
+    };
+    const wake = () => {
+      if (!raf) {
+        last = 0;
+        raf = requestAnimationFrame(tick);
+      }
+    };
     window.addEventListener('pointermove', move, { passive: true });
     document.addEventListener('pointerleave', leave);
     window.addEventListener('pointerdown', press);

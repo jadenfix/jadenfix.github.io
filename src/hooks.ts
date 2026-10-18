@@ -1,25 +1,29 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-
-const GLYPHS = '·:-=+*#%░▒';
+import { GLYPH_TICK, glyph, reducedMotion } from './motion';
 
 /** Decode-on-hover text, the old site's ScrambleText in a quieter voice. */
 export function useScramble(text: string) {
   const [out, setOut] = useState(text);
   const raf = useRef(0);
   const run = useCallback(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (reducedMotion()) return;
     cancelAnimationFrame(raf.current);
     const start = performance.now();
     const dur = 420;
+    let last = -Infinity;
     const tick = (now: number) => {
       const k = Math.min(1, (now - start) / dur);
-      const fixed = Math.floor(k * text.length);
-      setOut(
-        text
-          .split('')
-          .map((ch, i) => (i < fixed || ch === ' ' ? ch : GLYPHS[(Math.random() * GLYPHS.length) | 0]))
-          .join(''),
-      );
+      // glyphs change at the house rate, not every frame: it reads as decoding, not static
+      if (now - last >= GLYPH_TICK || k === 1) {
+        last = now;
+        const fixed = Math.floor(k * text.length);
+        setOut(
+          text
+            .split('')
+            .map((ch, i) => (i < fixed || ch === ' ' ? ch : glyph()))
+            .join(''),
+        );
+      }
       if (k < 1) raf.current = requestAnimationFrame(tick);
     };
     raf.current = requestAnimationFrame(tick);

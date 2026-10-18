@@ -29,10 +29,11 @@ function diskColour(temp: number, a: number) {
   return `rgba(${r | 0},${g | 0},${b | 0},${a.toFixed(2)})`;
 }
 
-export default function AsciiHole({ className = '' }: { className?: string }) {
+export default function AsciiHole({ className = '', reveal }: { className?: string; reveal?: string }) {
   const wrap = useRef<HTMLDivElement>(null);
   const main = useRef<HTMLCanvasElement>(null);
   const glow = useRef<HTMLCanvasElement>(null);
+  const smooth = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
     let raf = 0;
@@ -95,6 +96,13 @@ export default function AsciiHole({ className = '' }: { className?: string }) {
           c.style.left = `${(box - w) / 2}px`;
           c.style.top = `${(shown - h) / 2}px`;
         }
+        if (smooth.current) {
+          const im = smooth.current.style;
+          im.width = `${w}px`;
+          im.height = `${h}px`;
+          im.left = `${(box - w) / 2}px`;
+          im.top = `${(shown - h) / 2}px`;
+        }
         wrap.current!.style.height = `${shown}px`;
         const ctx = ctxs[0];
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -109,14 +117,52 @@ export default function AsciiHole({ className = '' }: { className?: string }) {
       const ptr = { col: -99, row: -99, inside: false, mass: 0 };
       const onMove = (e: PointerEvent) => {
         const r = main.current!.getBoundingClientRect();
-        ptr.col = (e.clientX - r.left) / cellW;
-        ptr.row = (e.clientY - r.top) / lineH;
+        // measured from the drawn box, so the lens stays under the pointer while the hero is scaled by scrolling
+        ptr.col = ((e.clientX - r.left) / r.width) * cols;
+        ptr.row = ((e.clientY - r.top) / r.height) * rows;
         ptr.inside = ptr.col > 0 && ptr.col < cols && ptr.row > 0 && ptr.row < rows;
       };
       const onLeave = () => (ptr.inside = false);
       window.addEventListener('pointermove', onMove, { passive: true });
       document.addEventListener('pointerleave', onLeave);
       const THETA_E = 2.4; // einstein radius of the pointer mass, in line heights
+      // the reveal lens: inside it, the same black hole ray-traced smoothly
+      const lens = { r: 0, x: 0, y: 0, touched: false, hint: 0 };
+      const onFirst = () => (lens.touched = true);
+      window.addEventListener('pointermove', onFirst, { once: true, passive: true });
+      const updateLens = (t: number) => {
+        const img = smooth.current;
+        if (!img) return;
+        let tx: number;
+        let ty: number;
+        let target: number;
+        const big = Math.min(190, Math.max(90, cellW * cols * 0.13));
+        if (ptr.inside) {
+          tx = ptr.col * cellW;
+          ty = ptr.row * lineH;
+          target = big;
+        } else if (!lens.touched && lens.hint < 1) {
+          // one slow sweep across the hole a moment after it appears, as a hint
+          lens.hint = Math.min(1, Math.max(0, (t - 3.5) / 6));
+          const k = lens.hint;
+          tx = cols * cellW * (0.28 + 0.44 * k);
+          ty = rows * lineH * (0.5 + 0.12 * Math.sin(k * Math.PI * 2));
+          target = k > 0 && k < 1 ? big * Math.sin(k * Math.PI) : 0;
+        } else {
+          tx = lens.x;
+          ty = lens.y;
+          target = 0;
+        }
+        lens.x += (tx - lens.x) * 0.25;
+        lens.y += (ty - lens.y) * 0.25;
+        lens.r += (target - lens.r) * 0.14;
+        const m =
+          lens.r < 1
+            ? 'radial-gradient(circle 0px at 0 0, #000, transparent)'
+            : `radial-gradient(circle ${lens.r.toFixed(1)}px at ${lens.x.toFixed(1)}px ${lens.y.toFixed(1)}px, #000 0%, #000 62%, rgba(0,0,0,0.6) 80%, transparent 100%)`;
+        img.style.maskImage = m;
+        img.style.webkitMaskImage = m;
+      };
       const ASPECT = meta.cellAspect;
       ro.observe(wrap.current!);
 
@@ -125,6 +171,7 @@ export default function AsciiHole({ className = '' }: { className?: string }) {
         const ctx = ctxs[0];
         ctx.clearRect(0, 0, cols * cellW, rows * lineH);
         ptr.mass += ((ptr.inside ? 1 : 0) - ptr.mass) * 0.12;
+        updateLens(t);
         const k = THETA_E * THETA_E * ptr.mass;
         for (let i = 0; i < n; i++) {
           const x = (i % cols) * cellW;
@@ -220,6 +267,7 @@ export default function AsciiHole({ className = '' }: { className?: string }) {
         ro.disconnect();
         io.disconnect();
         window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointermove', onFirst);
         document.removeEventListener('pointerleave', onLeave);
       };
     })();
@@ -235,6 +283,19 @@ export default function AsciiHole({ className = '' }: { className?: string }) {
     <div ref={wrap} className={`relative w-full select-none overflow-hidden ${className}`} aria-label="A black hole drawn in characters, its disk slowly turning." role="img">
       <canvas ref={glow} className="absolute top-0 opacity-70 blur-[6px]" aria-hidden />
       <canvas ref={main} className="absolute top-0" aria-hidden />
+      {reveal && (
+        <img
+          ref={smooth}
+          src={reveal}
+          alt=""
+          aria-hidden
+          draggable={false}
+          onLoad={(e) => (e.currentTarget.style.visibility = 'visible')}
+          onError={(e) => (e.currentTarget.style.display = 'none')}
+          className="pointer-events-none invisible absolute top-0 select-none"
+          style={{ maskImage: 'radial-gradient(circle 0px at 0 0, #000, transparent)', WebkitMaskImage: 'radial-gradient(circle 0px at 0 0, #000, transparent)' }}
+        />
+      )}
     </div>
   );
 }

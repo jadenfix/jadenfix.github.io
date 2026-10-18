@@ -3,6 +3,17 @@
 @tailwind utilities;
 
 @layer base {
+  /* the motion system (mirrors src/motion.ts) */
+  :root {
+    --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+    --ease-crisp: cubic-bezier(0.25, 1, 0.5, 1);
+    --ease-sweep: cubic-bezier(0.65, 0, 0.35, 1);
+    --dur-micro: 180ms;
+    --dur-short: 400ms;
+    --dur-base: 700ms;
+    --dur-slow: 1100ms;
+    --dur-develop: 2600ms;
+  }
   html { scroll-behavior: smooth; scroll-padding-top: 80px; background: #0b0b0a; }
   body {
     @apply bg-void font-mono text-bone antialiased;
@@ -10,6 +21,7 @@
     font-feature-settings: 'zero' 0, 'calt' 1;
   }
   ::selection { background: #e8a96a; color: #0b0b0a; }
+  :focus-visible { outline: 1px solid rgba(232, 169, 106, 0.85); outline-offset: 3px; }
 }
 
 @layer components {
@@ -18,11 +30,67 @@
   .display { @apply font-serif font-normal tracking-[-0.005em] text-bone; }
   .link-u { @apply underline decoration-line underline-offset-[5px] transition-colors hover:decoration-phos hover:text-bone; }
   .chip {
-    @apply inline-flex items-center gap-1 border border-line px-2 py-[3px] font-mono text-[11px] lowercase text-bone/90 transition-colors;
+    @apply relative isolate inline-flex items-center gap-1 border border-line px-2 py-[3px] font-mono text-[11px] lowercase text-bone/90 transition-colors;
   }
-  a.chip:hover { @apply border-phos text-phos; }
+  /* a faint amber fill wipes in from the left, the arrow leans toward where it goes */
+  a.chip::before {
+    content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(232, 169, 106, 0.09);
+    transform: scaleX(0); transform-origin: left; transition: transform 260ms var(--ease-crisp);
+  }
+  .chip-arrow { display: inline-block; transition: transform var(--dur-micro) var(--ease-crisp), color var(--dur-micro) var(--ease-crisp); }
+  a.chip:focus-visible { @apply border-phos text-phos; }
+  a.chip:focus-visible::before { transform: scaleX(1); }
+  @media (hover: hover) and (pointer: fine) {
+    a.chip:hover { @apply border-phos text-phos; }
+    a.chip:hover::before { transform: scaleX(1); }
+    a.chip:hover .chip-arrow { transform: translate3d(1.5px, -1.5px, 0); color: #e8a96a; }
+  }
   .dots { background-image: radial-gradient(circle, #34322e 1px, transparent 1.2px); background-size: 8px 8px; background-repeat: repeat-x; background-position: left center; height: 8px; }
 }
+
+/* ---------------------------------------------------------------- motion */
+/* entrances: timed by the shared reveal cohort in src/scroll.ts */
+.reveal { opacity: 0; transform: translate3d(0, 14px, 0); transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out); }
+.reveal[data-from='left'] { transform: translate3d(-8px, 0, 0); }
+.reveal[data-from='none'] { transform: none; }
+.reveal[data-in] { opacity: 1; transform: none; }
+
+/* a glyph drawn over a letter that is still laid out, invisibly, beneath it */
+.decode-glyph { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.42em; line-height: 1; font-style: normal; }
+
+/* section rules: a phosphor print head draws the dots across */
+.rule { position: relative; overflow: hidden; }
+.rule::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: -14px; right: 0;
+  background: linear-gradient(to right, transparent 0, rgba(232, 169, 106, 0.16) 4px 11px, rgba(232, 169, 106, 0.95) 11px 13px, #0b0b0a 13px);
+  transform: translate3d(0, 0, 0); transition: transform 1.7s var(--ease-sweep);
+}
+.rule[data-in]::after { transform: translate3d(101%, 0, 0); }
+
+/* reading progress: dashes, like a line of hyphens, with a lit head */
+.progress-dash {
+  background:
+    linear-gradient(to left, #e8a96a 0 10px, transparent 10px),
+    repeating-linear-gradient(to right, rgba(232, 169, 106, 0.55) 0 4px, transparent 4px 7px);
+}
+
+/* index rows: an amber tick rises at the left edge, the name leans in */
+.row-tick { transform: scaleY(0); transition: transform 260ms var(--ease-crisp); }
+.row-name { display: inline-block; transition: transform 320ms var(--ease-crisp), color var(--dur-micro) var(--ease-crisp); }
+.row[data-hot='1'] .row-tick { transform: scaleY(1); }
+.row[data-hot='1'] .row-name { transform: translate3d(4px, 0, 0); }
+
+/* memories: a print coming up in the developer tray. Opacity and transform only:
+   the colour print fades in over a grey, underexposed copy of itself under a safelight. */
+.develop { --dev-at: calc(var(--reveal-delay, 0s) + 0.35s); }
+.develop .dev-grey { filter: grayscale(1) contrast(0.9) brightness(0.5); }
+.develop .dev-color { filter: grayscale(0.15) brightness(0.95); opacity: 0; transition: opacity var(--dur-develop) var(--ease-out) calc(var(--dev-at) + 0.5s); }
+.develop .dev-frame { transform: scale(1.05); transition: transform 3.6s var(--ease-out) var(--dev-at); }
+.develop .dev-safe { opacity: 0; }
+.develop[data-in] .dev-color { opacity: 1; }
+.develop[data-in] .dev-frame { transform: none; }
+.develop[data-in] .dev-safe { animation: safelight 3s var(--ease-out) var(--dev-at) both; }
+@keyframes safelight { 0% { opacity: 0; } 35% { opacity: 1; } 100% { opacity: 0; } }
 
 /* film grain and the faintest scanlines; felt more than seen */
 .grain::before, .grain::after { content: ''; position: fixed; inset: -50%; pointer-events: none; z-index: 60; }
@@ -38,6 +106,9 @@
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
+  .reveal, .develop .dev-color, .develop .dev-frame { opacity: 1; transform: none; }
+  .develop .dev-safe { opacity: 0; }
+  .rule::after { display: none; }
 }
 
 /* pointer: an amber point and a slow ring that opens into [ ] over links */
@@ -46,7 +117,7 @@ html.custom-cursor input[type='range'] { cursor: none !important; }
 .cursor-dot, .cursor-ring { position: fixed; left: 0; top: 0; pointer-events: none; z-index: 70; opacity: 0; transition: opacity 0.3s; }
 .cursor-dot { width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; background: #e8a96a; box-shadow: 0 0 10px 1px rgba(232,169,106,0.55); border-radius: 50%; }
 .cursor-ring { width: 30px; height: 30px; margin: -15px 0 0 -15px; }
-.cursor-ring > span { position: absolute; top: 0; bottom: 0; width: 50%; border: 1px solid rgba(220,214,200,0.35); transition: all 0.35s cubic-bezier(0.2,0.7,0.2,1); }
+.cursor-ring > span { position: absolute; top: 0; bottom: 0; width: 50%; border: 1px solid rgba(220,214,200,0.35); transition: all 0.35s var(--ease-out); }
 .cursor-ring > span:first-child { left: 0; border-right: 0; border-radius: 15px 0 0 15px; }
 .cursor-ring > span:last-child { right: 0; border-left: 0; border-radius: 0 15px 15px 0; }
 .cursor-ring[data-hot='1'] > span { border-color: rgba(232,169,106,0.9); border-radius: 0; width: 7px; top: -2px; bottom: -2px; }
