@@ -12,6 +12,7 @@ const PRESETS: { key: string; label: string; from: string; to: string }[] = [
   { key: '1987', label: '1987', from: '1985-07', to: '1989-06' },
   { key: '2000', label: '2000-02', from: '1998-01', to: '2004-12' },
   { key: '2008', label: '2008', from: '2006-01', to: '2010-12' },
+  { key: '2022', label: '2022', from: '2020-01', to: '2024-12' },
 ];
 
 const NOTES: Record<Mode, string> = {
@@ -62,7 +63,7 @@ export default function RegimeExplorer() {
         <div>
           <div className="label">
             <span className="text-phos">regime explorer</span>
-            <span className="mx-2 text-faint">·</span>s&amp;p 500, 1900 to 2023
+            <span className="mx-2 text-faint">·</span>s&amp;p 500, {data ? `${data.start.slice(0, 4)} to ${data.end.slice(0, 4)}` : '1871 to 2026'}
           </div>
           <h3 id="regime-title" className="mt-2 font-serif text-[26px] leading-tight text-bone sm:text-[30px]">
             Bear markets, in hindsight and in real time
@@ -131,10 +132,12 @@ export default function RegimeExplorer() {
       </div>
 
       <p className="mt-8 border-t border-line pt-4 text-[11px] leading-relaxed text-faint">
-        Data: Shiller monthly S&amp;P 500; revised edition of my Adam Smith Award thesis (in progress). Bear markets
-        are dated on the real price: a 20% fall from a peak starts one, a 20% rise from the trough ends it. Regime
-        probabilities come from a two-regime MS-AR(1) on real returns estimated on 1960 to 2023; the forecasts are refit
-        every month on data available at the time.
+        Data: Robert Shiller&apos;s monthly S&amp;P 500 workbook{data ? `, ${data.start.slice(0, 4)} to ${data.end.slice(0, 4)}` : ''};
+        revised edition of my Adam Smith Award thesis. Bear markets are dated on the real price: a 20% fall from a peak
+        starts one, a 20% rise from the trough ends it. Regime probabilities come from a two-regime MS-AR(1) on real
+        returns estimated on {data ? `${data.regime.start.slice(0, 4)} to ${data.end.slice(0, 4)}` : 'the 1960 onward sample'}.
+        The one-month forecast{data ? ` (${data.forecast.label.toLowerCase()})` : ''} is refit every month on data
+        available at the time.
       </p>
     </section>
   );
@@ -175,12 +178,13 @@ function Readout({ data, hover, mode }: { data: Prepared | null; hover: number |
     dd = data.dd[i] === 0 ? 'at high' : `${signed(data.dd[i])}%`;
     const ri = i - data.regOff;
     const series = data.regime[mode];
-    prob = ri >= 0 && ri < series.length ? series[ri].toFixed(2) : 'n/a, pre-1960';
+    const pre = `n/a, pre-${data.regime.start.slice(0, 4)}`;
+    prob = ri >= 0 && ri < series.length ? series[ri].toFixed(2) : pre;
     const fi = i - data.fcOff;
     fc =
       fi >= 0 && fi < data.forecast.p.length
         ? `${data.forecast.p[fi].toFixed(2)} / ${data.forecast.persist[fi].toFixed(2)}`
-        : 'n/a, pre-1960';
+        : pre;
     inBear = data.bear[i] === '1';
     const now = data.bearNow[i] === '1';
     dated = `${inBear ? 'yes' : 'no'} / ${now ? (inBear ? 'yes' : 'still yes') : inBear ? 'not yet' : 'no'}`;

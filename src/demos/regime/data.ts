@@ -17,6 +17,7 @@ export type Skill = {
 
 export type RegimeData = {
   start: string;
+  end: string;
   n: number;
   price: number[];
   dd: number[];
@@ -26,7 +27,16 @@ export type RegimeData = {
   regime: { start: string; filtered: number[]; smoothed: number[] };
   forecast: { start: string; end: string; horizon: number; model: string; label: string; p: number[]; persist: number[] };
   skill: Skill[];
-  summary: { nChallengers: number; nBeatPersist5: number; minPPersist: number };
+  summary: {
+    nChallengers: number;
+    nTests: number;
+    nSigConventional: number;
+    nSigLong: number;
+    spaH1: number;
+    spaJoint: number;
+    persistInMcs: boolean;
+    lags: number;
+  };
 };
 
 /** Episode with month indices resolved against the series start. */

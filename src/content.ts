@@ -77,7 +77,7 @@ export const papers: Paper[] = [
   {
     kind: 'Thesis · Adam Smith Award',
     title: 'Predictive Stochastic Modeling for Financial Markets',
-    body: 'Calling S&P 500 bear markets with Bayesian Markov-switching models and macro-financial indicators.',
+    body: 'Can you see an S&P 500 bear market coming? Markov-switching models, logits and machine learning on Shiller’s data from 1871, tested in real time.',
     links: [
       {
         label: 'Thesis',

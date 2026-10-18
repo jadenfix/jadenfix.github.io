@@ -13,11 +13,12 @@ type RegimeModel = {
   bearShare: number;
   hist: { lo: number; width: number; counts: number[]; n: number };
   aucFiltered: number;
+  tvtp: { lr: number; p: string; df: number };
 };
 
 const URL = '/data/thesis/regimes.json';
-const X0 = -16;
 const X1 = 12;
+const TICKS = [-20, -15, -10, -5, 0, 5, 10];
 
 const normal = (x: number, m: number, s: number) => Math.exp(-0.5 * ((x - m) / s) ** 2) / (s * Math.sqrt(2 * Math.PI));
 
@@ -38,7 +39,7 @@ export default function RegimeDensities() {
     <section aria-label="Bull and bear regimes of the MS-AR(1) model" className="w-full min-w-0 text-bone">
       <div className="label">
         <span className="text-phos">two-regime ms-ar(1)</span>
-        <span className="mx-2 text-faint">·</span>monthly real returns, {data ? data.sample.replace('-', ' to ') : '1960 to 2023'}
+        <span className="mx-2 text-faint">·</span>monthly real returns, {data ? data.sample.replace('-', ' to ') : '1960 to 2026'}
       </div>
       <div ref={boxRef} className="mt-5 grid gap-8 md:grid-cols-12 md:gap-6">
         <div className="min-w-0 md:col-span-7">
@@ -52,6 +53,8 @@ export default function RegimeDensities() {
         Curves: each regime&apos;s normal distribution at its estimated mean and innovation volatility. Bars: every monthly real
         return{data ? `, ${data.hist.n} months` : ''}. The diagram is the estimated transition matrix; expected duration is
         1 / (1 &minus; stay probability). The moving token simulates the chain, one step per month.
+        {data &&
+          ` Letting the transition probabilities move with inflation, valuation, volatility and recent drawdowns (TVTP) fits better by a likelihood-ratio test (LR ${data.tvtp.lr.toFixed(1)}, ${data.tvtp.df} df, p ${data.tvtp.p.startsWith('<') ? data.tvtp.p.replace('<', '< ') : `= ${data.tvtp.p}`}), though not by BIC, and it does not forecast better.`}
       </p>
     </section>
   );
@@ -67,6 +70,7 @@ function Densities({ data, p, failed }: { data: RegimeModel | null; p: number; f
   const geo = useMemo(() => {
     if (!data || w <= 0) return null;
     const { hist, bull, bear } = data;
+    const X0 = hist.lo;
     const dens = hist.counts.map((c) => c / (hist.n * hist.width));
     const ymax = Math.max(normal(bull.mean, bull.mean, bull.sd), normal(bear.mean, bear.mean, bear.sd), ...dens) * 1.12;
     const x = linear(X0, X1, M.l, w - M.r);
@@ -79,7 +83,7 @@ function Densities({ data, p, failed }: { data: RegimeModel | null; p: number; f
       }
       return pts;
     };
-    return { dens, ymax, x, y, bullPts: curve(bull.mean, bull.sd), bearPts: curve(bear.mean, bear.sd) };
+    return { X0, dens, ymax, x, y, bullPts: curve(bull.mean, bull.sd), bearPts: curve(bear.mean, bear.sd) };
   }, [data, w, h, M.l, M.r, M.t, M.b]);
 
   const eBars = clamp(p / 0.35, 0, 1);
@@ -93,7 +97,7 @@ function Densities({ data, p, failed }: { data: RegimeModel | null; p: number; f
     pts.forEach(([v, f], i) => {
       d += `${i ? 'L' : 'M'}${geo.x(v).toFixed(1)},${(base + (geo.y(f) - base) * k).toFixed(1)}`;
     });
-    if (close) d += `L${geo.x(X1).toFixed(1)},${base}L${geo.x(X0).toFixed(1)},${base}Z`;
+    if (close) d += `L${geo.x(X1).toFixed(1)},${base}L${geo.x(geo.X0).toFixed(1)},${base}Z`;
     return d;
   };
 
@@ -102,7 +106,7 @@ function Densities({ data, p, failed }: { data: RegimeModel | null; p: number; f
       {geo && data && (
         <svg width={w} height={h} className="absolute inset-0 block" role="img" aria-label={`Bull regime: mean ${data.bull.mean}% a month, volatility ${data.bull.sd}%. Bear regime: mean ${data.bear.mean}%, volatility ${data.bear.sd}%.`}>
           {/* axis */}
-          {[-15, -10, -5, 0, 5, 10].map((t) => (
+          {TICKS.filter((t) => t >= geo.X0).map((t) => (
             <g key={t}>
               <line x1={geo.x(t)} x2={geo.x(t)} y1={M.t} y2={h - M.b} stroke={C.line} strokeWidth={t === 0 ? 1 : 0.6} strokeDasharray={t === 0 ? undefined : '2 4'} />
               <text x={geo.x(t)} y={h - M.b + 14} textAnchor="middle" fontSize={10} fill={C.faint}>

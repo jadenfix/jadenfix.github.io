@@ -81,21 +81,22 @@ const papers: Paper[] = [
     kind: 'thesis · adam smith award',
     title: 'Predictive Stochastic Modeling for Financial Markets',
     teaser:
-      'A century of S&P 500 bull and bear regimes, read two ways: filtered, with only the data available at the time, and smoothed, with hindsight. Scrub through it, or jump to 1929, 1987 or 2008.',
+      '150 years of S&P 500 bull and bear regimes, read two ways: filtered, with only the data available at the time, and smoothed, with hindsight. Scrub through it, or jump to 1929, 1987, 2008 or 2022.',
     links: [
-      { label: 'revised pdf', href: 'https://github.com/jadenfix/Predictive-Stochastic-Modeling-for-Financial-Markets-/blob/v2/v2/paper/Predictive_Stochastic_Modeling_v2.pdf' },
+      { label: 'revised pdf', href: 'https://github.com/jadenfix/Predictive-Stochastic-Modeling-for-Financial-Markets-/blob/main/v2/paper/Predictive_Stochastic_Modeling_v2.pdf' },
       { label: 'award pdf', href: THESIS_PDF },
       { label: 'code', href: 'https://github.com/jadenfix/Predictive-Stochastic-Modeling-for-Financial-Markets-' },
+      { label: 'script', href: 'https://github.com/jadenfix/Predictive-Stochastic-Modeling-for-Financial-Markets-/blob/main/v2/thesis.py' },
     ],
     hero: RegimeExplorer,
     note: {
       how: 'hover or drag across the chart to read any month, toggle filtered vs smoothed, jump to a crisis preset or drag to zoom, double-click to reset.',
       reveals:
-        'smoothed probabilities look prescient because they use the future; filtered ones, the only ones you could have had in real time, react later, and the skill bars show no model beats knowing a bear market is already under way.',
+        'smoothed probabilities look prescient because they use the future; filtered ones, the only ones you could have had in real time, react later, and the skill bars show the best models only edge out knowing a bear market is already under way, by margins the formal tests can’t tell from luck.',
     },
     figures: [
       { title: 'Two regimes', Comp: RegimeDensities },
-      { title: 'Every bear market since 1900', Comp: Episodes },
+      { title: 'Every bear market since 1871', Comp: Episodes },
       { title: 'Forecast skill by horizon', Comp: ForecastSkill },
       { title: 'Calibration', Comp: Calibration },
     ],

@@ -71,7 +71,7 @@ export default function Chart({ data, w, h, mode, win, onWin, hover, onHover, vi
   const spans = data.spans.filter((s) => s.i1 + 0.5 >= a && s.i0 - 0.5 <= b);
   const hoverSpan = hover == null ? null : data.spans.find((s) => hover >= s.i0 && hover <= s.i1) ?? null;
 
-  // pre-1960 notice in the regime strip
+  // notice in the regime strip before the regime model's sample starts
   const regX = Math.max(M.l, Math.min(plotR, x(data.regOff - 0.5)));
   const preW = regX - M.l;
 
@@ -186,7 +186,7 @@ export default function Chart({ data, w, h, mode, win, onWin, hover, onHover, vi
         viewBox={`0 0 ${w} ${h}`}
         className="block select-none"
         role="img"
-        aria-label={`Real S&P 500 price on a log scale, ${data.start.slice(0, 4)} to 2023, with ${data.spans.length} dated bear markets shaded; below it the ${mode} bear-regime probability from 1960 and the one-month out-of-sample forecast.`}
+        aria-label={`Real S&P 500 price on a log scale, ${data.start.slice(0, 4)} to ${data.end.slice(0, 4)}, with ${data.spans.length} dated bear markets shaded; below it the ${mode} bear-regime probability from ${data.regime.start.slice(0, 4)} and the one-month out-of-sample forecast.`}
         style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace' }}
       >
         <defs>
@@ -234,7 +234,7 @@ export default function Chart({ data, w, h, mode, win, onWin, hover, onHover, vi
             );
           })}
 
-          {/* pre-1960: regime model not fit */}
+          {/* before the regime sample: model not fit */}
           {preW > 1 && (
             <>
               <rect x={M.l} y={regTop + 1} width={preW} height={REG_H - 1} fill={`url(#hatch-${uid})`} />
@@ -256,7 +256,7 @@ export default function Chart({ data, w, h, mode, win, onWin, hover, onHover, vi
 
         {preW > 150 && reveal > 0.2 && (
           <text x={M.l + preW / 2} y={regTop + REG_H / 2 + 3} textAnchor="middle" fontSize={9.5} fill={C.dim}>
-            regime model starts 1960
+            regime model starts {data.regime.start.slice(0, 4)}
           </text>
         )}
 

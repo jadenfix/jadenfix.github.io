@@ -1,13 +1,13 @@
 import type { Prepared, Skill } from './data';
 import { signed } from './theme';
 
-const SCALE = 25; // percent at full bar width
-const GRID = [0, 10, 20];
+const SCALE = 30; // percent at full bar width
+const GRID = [0, 10, 20, 30];
 
 /**
  * Out-of-sample Brier skill (percent reduction in Brier score vs the unconditional bear
  * frequency) for the most accurate model at each horizon and for persistence.
- * Values come straight from bear_oos_metrics.csv via regimes.json.
+ * Values come straight from the thesis' numbers.json via regimes.json.
  */
 export default function SkillReadout({ data, shown }: { data: Prepared | null; shown: boolean }) {
   const rows: { h: number; full: Skill | null }[] = data
@@ -41,7 +41,7 @@ export default function SkillReadout({ data, shown }: { data: Prepared | null; s
                 <dd className="col-span-2 text-[10.5px] leading-[1.4] text-faint">
                   {full ? (
                     <>
-                      {full.bestLabel.toLowerCase()} <span className="text-faint/70">·</span> p = {full.pVsPersist.toFixed(2)} vs persistence
+                      {full.bestLabel.toLowerCase()} <span className="text-faint/70">·</span> p = {full.pVsPersist.toFixed(3)} vs persistence
                     </>
                   ) : (
                     ' '
@@ -67,17 +67,20 @@ export default function SkillReadout({ data, shown }: { data: Prepared | null; s
       <div className="flex flex-col gap-6 md:col-span-5 md:pt-1">
         <figure>
           <blockquote className="font-serif text-[22px] leading-[1.25] text-bone sm:text-[25px]">
-            In real time, the information that best predicts a bear market next month is that one has already begun.
+            The information that best predicts a bear market next month is that one has already begun.
           </blockquote>
           <figcaption className="mt-3 label">from the revised thesis, conclusion</figcaption>
         </figure>
         <p className="text-[12px] leading-relaxed text-dim">
           {data ? (
             <>
-              Models beat the unconditional rate at short horizons, but none of the {data.summary.nChallengers} model and
-              horizon pairs beats persistence at the 5% level (smallest p = {data.summary.minPPersist.toFixed(3)}). By twelve
+              The best model at each horizon edges out persistence, but by margins the formal tests can&apos;t tell apart
+              from luck. Across all {data.summary.nChallengers} models, Hansen&apos;s SPA test gives p ={' '}
+              {data.summary.spaH1.toFixed(3)} at one month and {data.summary.spaJoint.toFixed(3)} across every horizon
+              {data.summary.persistInMcs ? ', and persistence stays in the model confidence set throughout' : ''}. By twelve
               months the best skill is {signed(data.skill[data.skill.length - 1].bestBss)}%, not reliably better than the base
-              rate. Every forecast uses only data available at its origin month.
+              rate. The p-values under each bar allow for autocorrelated errors ({data.summary.lags} lags). Every forecast uses only data
+              available at its origin month.
             </>
           ) : (
             ' '

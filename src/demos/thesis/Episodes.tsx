@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from
 import { C, clamp, lerp, linear, monthName, signed, toggleClass, useJson, usePrefersReducedMotion, useReveal, useSize, useTween, useVisibility, yearOf } from './kit';
 
 type Episode = { peak: string; trough: string; confirmed: string; months: number; decline: number; path: number[] };
-type EpisodeData = { start: string; end: string; rule: string; episodes: Episode[] };
+type EpisodeData = { start: string; end: string; rule: string; nSince1960: number; episodes: Episode[] };
 
 const URL = '/data/thesis/episodes.json';
 const STAGGER = 150;
@@ -34,7 +34,7 @@ const monthsBetween = (a: string, b: string) => {
 };
 
 /**
- * Fig. 3: every dated bear market in the real S&P 500 since 1900, drawn as a dive from its
+ * Fig. 3: every dated bear market in the real S&P 500 since 1871, drawn as a dive from its
  * peak to its trough (and a year of what came after), in sequence. Toggle to stack them from
  * a common peak to compare depth and length directly.
  */
@@ -47,7 +47,7 @@ export default function Episodes() {
   const { visible } = useVisibility(boxRef, '0px 0px -10% 0px');
   const { w, h } = useSize(boxRef);
   const reduce = usePrefersReducedMotion();
-  const n = data?.episodes.length ?? 21;
+  const n = data?.episodes.length ?? 25;
   const total = (n - 1) * STAGGER + DIVE;
   const reveal = useReveal(visible && !!data && w > 0, total, reduce);
   const [m] = useTween([mode === 'aligned' ? 1 : 0], 900, visible && !reduce);
@@ -107,16 +107,16 @@ export default function Episodes() {
     } else if (e.key === 'Escape') setSel(null);
   };
 
-  const yearTicks = geo ? (w < 520 ? [1900, 1940, 1980, 2020] : [1900, 1920, 1940, 1960, 1980, 2000, 2020]) : [];
+  const yearTicks = geo ? (w < 520 ? [1880, 1920, 1960, 2000] : [1880, 1900, 1920, 1940, 1960, 1980, 2000, 2020]) : [];
   const monthTicks = geo ? [0, 12, 24, 36, 48, 60, 72].filter((t) => t <= geo.maxLen) : [];
   const sEp = sel != null && data ? data.episodes[sel] : null;
 
   return (
-    <section aria-label="Dated bear markets in the real S&P 500 since 1900" className="w-full min-w-0 text-bone">
+    <section aria-label="Dated bear markets in the real S&P 500 since 1871" className="w-full min-w-0 text-bone">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="label">
           <span className="text-phos">{data ? `${data.episodes.length} bear markets` : 'bear markets'}</span>
-          <span className="mx-2 text-faint">·</span>real s&amp;p 500, {data ? `${data.start.slice(0, 4)} to ${data.end.slice(0, 4)}` : '1900 to 2023'}
+          <span className="mx-2 text-faint">·</span>real s&amp;p 500, {data ? `${data.start.slice(0, 4)} to ${data.end.slice(0, 4)}` : '1871 to 2026'}
         </div>
         <div role="group" aria-label="Layout" className="flex flex-wrap gap-2">
           {(['timeline', 'aligned'] as const).map((k) => (
@@ -236,6 +236,7 @@ export default function Episodes() {
         Real price relative to each peak, monthly averages. A bear market starts when the index falls {data?.rule ?? 20}% below a
         peak (dated from the month after the peak) and ends at the trough once the index has risen {data?.rule ?? 20}% from it.
         The thin tail after each trough shows the following year, or the climb back to the old peak if that came sooner.
+        {data ? ` ${data.nSince1960} of the ${data.episodes.length} fall inside the 1960 to ${data.end.slice(0, 4)} window that the forecasts are scored on.` : ''}
       </p>
     </section>
   );

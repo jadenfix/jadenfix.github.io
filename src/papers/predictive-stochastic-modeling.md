@@ -5,34 +5,37 @@ summary: Can you see an S&P 500 bear market coming? In real time, mostly you can
 status: revised edition
 ---
 
-My undergraduate thesis asked a simple question: can market and macroeconomic indicators forecast bear markets in the S&P 500? This revised edition answers it with a stricter test. Every forecast uses only data that was published at the time, every model is refit at every forecast date, and every result is judged out of sample.
+My undergraduate thesis asked whether market and macroeconomic indicators can forecast bear markets in the S&P 500. This revised edition rebuilds it with a stricter test: every forecast uses only data published by its forecast date, every model is refit as time moves forward, and everything is scored out of sample. It replaces the award version, which had a timing error that let its regime model see the next month's price.
 
 ## The setup
 
-The data are Robert Shiller's monthly S&P 500 series, 1900 to 2023. I date bear markets with a plain rule on the real (inflation-adjusted) price: a **20% fall from a peak** starts one, a 20% rise from the trough ends it. That gives 21 bear markets since 1900, with a median fall of 35% over about 20 months. The catch is that a bear market is only recognizable once the 20% fall has happened, a median of 9 months after the peak.
+The data come straight from Robert Shiller's monthly workbook, January 1871 to June 2026, and one script reproduces every number. A bear market starts with a **20% fall from a peak** in the real price and ends with a 20% rise from the trough. That gives 25 of them, with a median fall of 34.2% over 20 months. The catch: you can only recognize one once the 20% fall has happened, a median of 11 months after the peak.
 
-On top of that sit three kinds of model:
+Forecasts are made every month from January 1960 to May 2026, 1, 3, 6 and 12 months ahead, and scored with the Brier score. The contenders:
 
-- A two-regime **Markov-switching model** of monthly returns, which infers whether the market is in a calm or a turbulent state.
-- **Logit and probit models** on six state variables: the dividend yield, the CAPE ratio, inflation, the change in the 10-year yield, the past year's return and realized volatility.
-- Two baselines that any useful model has to beat: the **unconditional frequency** of bear markets, and **persistence**, which only knows whether a confirmed bear market is under way right now.
-
-Forecasts are made every month from 1960 to 2023 at horizons of 1, 3, 6 and 12 months and scored with the Brier score.
+- A two-regime **Markov-switching model** of returns, plus a version whose transition probabilities move with inflation, valuation, volatility and drawdowns (TVTP).
+- **Logits and probits** on six state variables, from the dividend yield and CAPE to inflation and realized volatility.
+- **Elastic nets and gradient boosting**, tuned only on data inside each training window, and **dynamic model averaging**.
+- Two baselines: the **unconditional frequency**, and **persistence**, which only knows whether a confirmed bear market is under way right now.
 
 ## What I found
 
-The regimes are real. Returns alternate between a calm bull regime (about +0.8% a month, lasting around 18 months on average) and a volatile bear regime (about -1.8% a month with more than twice the volatility, lasting around 5 months).
+The regimes are real. Returns alternate between a calm bull regime (+0.88% a month, lasting about 16.6 months) and a bear regime that loses 1.75% a month with more than twice the volatility and lasts about 5 months.
 
-Forecasting them is another matter. At one month the best models cut the Brier score by about 21% relative to the base rate. Persistence alone gets 19%, and none of the 20 model and horizon pairs beats persistence at the 5% level. Skill fades quickly with the horizon, and at 12 months nothing reliably beats the base rate. The dividend yield holds on longest, with small and imprecise gains out to six months.
+Forecasting them is harder. At one month the six-predictor logit cuts the Brier score by 25.4% against the base rate; persistence alone gets 17.6%. A textbook Diebold-Mariano test calls that gap significant (p = 0.019), but forecast errors are strongly autocorrelated during long bear markets, and allowing for that pushes p to 0.172. Skill fades fast, too: at 12 months the best model manages 1.4%.
 
-> In real time, the information that best predicts a bear market next month is that one has already begun.
+> The information that best predicts a bear market next month is that one has already begun.
+
+## What the modern methods add
+
+Less than you'd hope. TVTP fits better in sample by a likelihood-ratio test (51.0, p < 0.001), though not by BIC, and forecasts no better (8.0% against 9.1% for the plain model at one month). Gradient boosting on the rich predictor set is among the best at one month (26.8%) and far below the base rate at twelve (−32.1%): with a handful of bear markets per training window, it learns episodes, not rules. Dynamic model averaging gets 23.4% without knowing the winner in advance. A Murphy decomposition shows that persistence already has about as much resolution as the logit; the logit mostly wins on calibration.
+
+The formal tests settle it. Hansen's SPA test, which accounts for trying 24 models, gives p = 0.189 at one month and 0.468 across all horizons, and persistence stays in the model confidence set at every horizon.
 
 ## Robustness
 
-I tried to break that conclusion and could not. The paper re-runs the full real-time exercise with 15% and 25% thresholds and with nominal prices, compares five regime specifications including a three-regime model, refits on rolling 30-year windows instead of the full history, scores 1960 to 1989 and 1990 to 2023 separately and without the 2008 crisis, adds five more predictors from the same data, and averages all eleven single-predictor forecasts into a combination. Block-bootstrap intervals show how wide the uncertainty is: the one-month skill of persistence runs from about 7% to 31%.
-
-Two details stand out. Most of the forecastability sits after 1990, when bear markets were confirmed faster. And the one predictor that beats persistence, the drawdown from the 12-month high, wins only at one month and only because it notices the same decline a little sooner.
+I tried to break that and couldn't. The paper re-runs everything with 15% and 25% thresholds, nominal prices and rolling 30-year windows (smallest SPA p-value: 0.242), scores 1960 to 1989 and 1990 to 2026 separately, drops the 2007 to 2009 crisis, adds five more predictors, and block-bootstraps the lot. Most of the skill lives after 1990: persistence's one-month skill is 8.0% before and 28.3% after.
 
 ## What it means
 
-These models are better at recognizing a bear market than at warning of one. That is consistent with a market in which public information about downturns is largely priced in. The figures below show the regimes, every dated bear market, forecast skill by horizon with the robustness checks, and how well calibrated the forecasts are. The full paper and code are linked above.
+These models are better at recognizing a bear market than at warning of one, which fits a market where public information about downturns is largely priced in. The figures below show the regimes, every dated bear market, forecast skill with the formal tests, and calibration.

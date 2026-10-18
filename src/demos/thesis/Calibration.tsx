@@ -2,9 +2,10 @@ import { useMemo, useRef, useState } from 'react';
 import { C, clamp, linear, toggleClass, useJson, usePrefersReducedMotion, useReveal, useSize, useTween, useVisibility } from './kit';
 
 type Point = { b: number; f: number; o: number; n: number };
-type Cell = { pts: Point[]; hist: number[]; n: number; brier: number; base: number };
+type Cell = { pts: Point[]; hist: number[]; n: number; brier: number; base: number; share: number };
 type CalData = {
   horizons: number[];
+  period: string;
   models: { key: string; label: string }[];
   bins: number;
   minCount: number;
@@ -12,11 +13,13 @@ type CalData = {
 };
 
 const URL = '/data/thesis/calibration.json';
-const COLOR: Record<string, string> = { logit_all: C.phos, logit_dy: C.bone, ms: C.dim, persist: C.ice };
+const COLOR: Record<string, string> = { logit_all: C.phos, logit_dy: C.bone, ms: C.dim, tvtp: C.dim, gbt_rich: C.red, persist: C.ice };
 const SHORT: Record<string, string> = {
-  logit_all: 'logit: all predictors',
+  logit_all: 'logit: 6 predictors',
   logit_dy: 'logit: dividend yield',
   ms: 'ms-ar(1)',
+  tvtp: 'tvtp ms-ar(1)',
+  gbt_rich: 'gradient boosting',
   persist: 'persistence',
 };
 
@@ -70,7 +73,7 @@ export default function Calibration() {
     <section aria-label="Calibration of the real-time bear-market forecasts" className="w-full min-w-0 text-bone">
       <div className="label">
         <span className="text-phos">calibration</span>
-        <span className="mx-2 text-faint">·</span>real-time forecasts, 1960 to 2023
+        <span className="mx-2 text-faint">·</span>real-time forecasts, {data ? `${data.period.slice(0, 4)} to ${data.period.slice(8, 12)}` : '1960 to 2026'}
       </div>
 
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -114,7 +117,7 @@ export default function Calibration() {
             </div>
             <div>
               <dt className="label">bear rate</dt>
-              <dd className="mt-1 text-bone">{cell ? `${(100 * cell.base).toFixed(1)}%` : '--'}</dd>
+              <dd className="mt-1 text-bone">{cell ? `${cell.share.toFixed(1)}%` : '--'}</dd>
             </div>
             <div>
               <dt className="label">forecasts</dt>
@@ -124,7 +127,8 @@ export default function Calibration() {
           <p className="text-[12px] leading-relaxed text-dim">
             Dots above the diagonal: bear markets came more often than forecast. Below it: the forecast was too confident.
             At one month the models rank months well but overshoot at the top. By twelve months the observed rate no longer
-            rises with the forecast.
+            rises with the forecast, and gradient boosting is the extreme case: its most confident long-range calls are its
+            worst.
           </p>
         </div>
       </div>
