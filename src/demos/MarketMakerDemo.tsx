@@ -96,7 +96,7 @@ export default function MarketMakerDemo() {
   };
   const decimals = sess ? Math.max(0, Math.round(-Math.log10(sess.slice.tick))) : 2;
   const last = frame?.history[frame.history.length - 1];
-  const bpsFrom = (v: number | null) => (v === null || !last ? '—' : `${signed(((v - last.mid) / last.mid) * 1e4, 1)}`);
+  const bpsFrom = (v: number | null) => (v === null || !last ? '…' : `${signed(((v - last.mid) / last.mid) * 1e4, 1)}`);
   const T = info?.test;
   const files = info?.files ?? [];
   const label = info?.baseline.label ?? 'best baseline';
@@ -106,7 +106,7 @@ export default function MarketMakerDemo() {
     ['sharpe-like / hour', (s) => `${signed(s.sharpe)} ${ci(s.sharpe_ci)}`],
     ['fills / hour', (s) => s.fills_per_hour.toFixed(1)],
     ['mean |inventory|', (s) => `${s.mean_abs_inv_quotes.toFixed(2)} q`],
-    ['5 s markout', (s) => (Number.isFinite(s.markout_5s_bps) ? `${signed(s.markout_5s_bps, 2)} bps` : '—')],
+    ['5 s markout', (s) => (Number.isFinite(s.markout_5s_bps) ? `${signed(s.markout_5s_bps, 2)} bps` : '…')],
   ];
 
   return (
@@ -141,7 +141,7 @@ export default function MarketMakerDemo() {
         <div className="relative h-[200px] px-3 pb-2 pt-6 sm:h-[230px]">
           <div className="pointer-events-none absolute left-3 right-3 top-2 flex flex-wrap justify-between gap-x-3 text-[10px] lowercase tracking-[0.12em] text-faint">
             <span>
-              {short(sym)}usdt perp · <span className="text-phos">— agent</span> · <span className="text-ice">- - {label}</span> · ● bought ○ sold
+              {short(sym)}usdt perp · <span className="text-phos">━ agent</span> · <span className="text-ice">- - {label}</span> · ● bought ○ sold
             </span>
             {sess && (
               <span className="tabular-nums tracking-normal">
@@ -166,10 +166,10 @@ export default function MarketMakerDemo() {
       <dl className="grid grid-cols-2 border-x border-b border-line text-[11px] sm:grid-cols-4">
         {(
           [
-            ['agent quotes, bps from mid', last ? `${bpsFrom(last.agent.bid)} / ${bpsFrom(last.agent.ask)}` : '—', true],
-            ['baseline quotes, bps from mid', last ? `${bpsFrom(last.base.bid)} / ${bpsFrom(last.base.ask)}` : '—', false],
-            ['agent pnl · fills · inv', frame ? `${signed(frame.stats.agent.pnl)} · ${frame.stats.agent.fills} · ${signed(frame.stats.agent.inv, 1)}` : '—', true],
-            ['baseline pnl · fills · inv', frame ? `${signed(frame.stats.base.pnl)} · ${frame.stats.base.fills} · ${signed(frame.stats.base.inv, 1)}` : '—', false],
+            ['agent quotes, bps from mid', last ? `${bpsFrom(last.agent.bid)} / ${bpsFrom(last.agent.ask)}` : '…', true],
+            ['baseline quotes, bps from mid', last ? `${bpsFrom(last.base.bid)} / ${bpsFrom(last.base.ask)}` : '…', false],
+            ['agent pnl · fills · inv', frame ? `${signed(frame.stats.agent.pnl)} · ${frame.stats.agent.fills} · ${signed(frame.stats.agent.inv, 1)}` : '…', true],
+            ['baseline pnl · fills · inv', frame ? `${signed(frame.stats.base.pnl)} · ${frame.stats.base.fills} · ${signed(frame.stats.base.inv, 1)}` : '…', false],
           ] as [string, string, boolean][]
         ).map(([k, v, accent], i) => (
           <div key={k} className={`min-w-0 px-3 py-2 ${i % 2 === 1 ? 'border-l border-line' : ''} ${i >= 2 ? 'border-t border-line sm:border-t-0' : ''} ${i === 2 ? 'sm:border-l' : ''}`}>
@@ -230,7 +230,7 @@ export default function MarketMakerDemo() {
         2023–24; each week trains on days 1–4, validates on day 5 and tests on days 6–7. The agent (DRL4MM v2) averages five SAC actor networks, one per
         seed, each trained on BTC, ETH and LTC only with a reward that credits every fill with its 30 s markout; once a second it sets a half-spread and a
         skew around the microprice from order-flow, volatility and inventory features. The baseline is whichever did best on this instrument&apos;s
-        validation days among a tuned fixed half-spread, Avellaneda–Stoikov, the repo&apos;s fixed-midpoint quotes and the previous TD3. Both quote about
+        validation days among a tuned fixed half-spread, Avellaneda-Stoikov, the repo&apos;s fixed-midpoint quotes and the previous TD3. Both quote about
         1,000 USDT per side on the identical replay, in a TypeScript port of the Python queue-position simulator that reproduces it fill for fill: 100 ms
         latency, our orders join the back of the queue, the market does not react to us, inventory is capped at five quotes and flattened across the
         spread at the end. Under these fill rules quoting at the touch loses money for everyone, so both mostly wait several bps away for spikes. No

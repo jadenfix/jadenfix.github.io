@@ -21,7 +21,7 @@ export type Role = {
 
 export const roles: Role[] = [
   {
-    dates: 'Oct 2026 – now',
+    dates: 'Oct 2026 to now',
     org: 'AfterQuery',
     href: 'https://www.afterquery.com',
     title: 'Software Engineer, Platform & Applied AI',
@@ -61,8 +61,8 @@ export type Paper = {
 export const papers: Paper[] = [
   {
     kind: 'Paper · 2026',
-    title: 'Branch-Aware Hindsight Credit Assignment for LLM Agents',
-    body: 'Outcome-only credit pays every step of a winning episode the same, so a step that does nothing earns as much as the step that wins, and doing nothing never fails. I call this loop-action bias. On a controlled benchmark, policies trained this way did worse than the prompted baseline (0.24 vs. 0.79 success); scoring each step by what it actually changed brought success to 1.00. On real ALFWorld, branch-aware scoring separates 2.6 to 9.4 times more states than outcome-only, and the gap is widest for the weaker model.',
+    title: 'Branch-Aware Hindsight Credit Assignment for Language-Model Agents',
+    body: 'Outcome-only credit pays every step of a winning episode the same, so a step that does nothing earns as much as the step that wins, and doing nothing never fails. I call this loop-action bias. On a controlled benchmark, policies trained this way did worse than the prompted baseline (0.24 vs. 0.79 success); scoring each step by what it changed, with the hindsight scorer alongside, brought success to 1.00. On real ALFWorld, branch-aware scoring separates 2.6 to 9.4 times more states than outcome-only, and the gap is widest for the weaker model.',
     links: [
       { label: 'Paper', href: 'https://github.com/jadenfix/CreditAssignment/blob/main/paper/main.pdf' },
       { label: 'Code', href: 'https://github.com/jadenfix/CreditAssignment' },
@@ -98,7 +98,7 @@ export const tempera: Layer[] = [
   {
     label: 'See and act',
     items: [{ name: 'tempo', href: 'https://github.com/jadenfix/tempo' }],
-    body: 'A browser built for models, not people. Ranked, stable-ID, diff-able page state instead of screenshots; anything derived from a page is tainted and pushed into the sandbox. About 99k lines of Rust across 29 crates.',
+    body: 'A browser for models. Ranked, stable-ID, diff-able page state instead of screenshots; anything derived from a page is tainted and pushed into the sandbox. About 99k lines of Rust across 29 crates.',
   },
   {
     label: 'Run safely',

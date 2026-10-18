@@ -5,7 +5,7 @@ summary: Outcome-only credit can teach an agent that stalling is as good as acti
 read: 3 min
 ---
 
-Most LLM agent training pipelines have a silent bug that makes agents prefer stalling over acting.
+Outcome-only credit has a quiet bug that makes agents prefer stalling over acting.
 
 I named it "loop-action bias." Here's how it works:
 
@@ -17,13 +17,13 @@ To outcome-only scoring, these look IDENTICAL. Same state, same episode eventual
 
 So the agent learns: rattling = unlocking. Both get credit. But rattling is "safer" (never fails). So the trained policy rattles forever.
 
-Result: trained agent performs WORSE than untrained. 0.24 vs 0.79.
+Result: the trained agent performs WORSE than the prompted baseline it started from. 0.24 vs 0.79.
 
 To be precise about that number: it's a policy trained on outcome-only credit against the prompted baseline, on a controlled stochastic benchmark with hand-authored verifier signals. Not a large-scale LLM RL run.
 
 Fix: use the signals the environment already gives you. Room changed? Progress. Same observation 3x? Stalling. That's it.
 
-Tested on real ALFWorld with Claude Haiku + Qwen-7B. Works on both. Open source. (Run it on your own infra, or on GCP for under $5.)
+Measured on real ALFWorld with Claude Haiku 4.5 and Qwen2.5-7B: the signal separates 2.6x to 9.4x more states than outcome-only. Open source. (Run it on your own infra, or on GCP for under $5.)
 
 ## The longer version
 

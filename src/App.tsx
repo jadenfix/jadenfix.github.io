@@ -63,7 +63,7 @@ const papers: Paper[] = [
   {
     slug: 'branch-aware',
     kind: 'paper · 2026',
-    title: 'Branch-Aware Hindsight Credit Assignment for LLM Agents',
+    title: 'Branch-Aware Hindsight Credit Assignment for Language-Model Agents',
     teaser:
       'Outcome-only credit pays every step of a winning episode the same, so a stall earns as much as the move that won, and stalling never fails. The figure runs the paper’s own scorers on its controlled benchmark, live.',
     links: [
@@ -83,7 +83,7 @@ const papers: Paper[] = [
     kind: 'thesis · adam smith award',
     title: 'Predictive Stochastic Modeling for Financial Markets',
     teaser:
-      '150 years of S&P 500 bull and bear regimes, read two ways: filtered, with only the data available at the time, and smoothed, with hindsight. Scrub through it, or jump to 1929, 1987, 2008 or 2022.',
+      'US stock market bull and bear regimes since 1871, read two ways: filtered, with only the data available at the time, and smoothed, with hindsight. Scrub through it, or jump to 1929, 1987, 2008 or 2022.',
     links: [
       { label: 'revised pdf', href: 'https://github.com/jadenfix/Predictive-Stochastic-Modeling-for-Financial-Markets-/blob/main/v2/paper/Predictive_Stochastic_Modeling_v2.pdf' },
       { label: 'award pdf', href: THESIS_PDF },
@@ -333,7 +333,6 @@ function Index() {
         <div className="label">
           <span className="text-phos">index</span> · papers and projects, each with a live demo below
         </div>
-        <div className="hidden text-[11px] text-faint sm:block">press / to jump</div>
       </div>
       <WorkIndex />
     </section>
@@ -377,7 +376,7 @@ function Experience() {
   return (
     <section id="experience" className="page">
       <Rule />
-      <SectionHead n="03" label="experience" title="Where I’ve worked" />
+      <SectionHead n="04" label="experience" title="Where I’ve worked" />
       <div className="mt-12 md:grid md:grid-cols-12">
         <ol className="md:col-span-9 md:col-start-4">
           {roles.map((r) => (
@@ -481,7 +480,7 @@ const projects: { id: string; name: string; tag: string; href: string; body: str
     Comp: BenchMatrix,
     note: {
       how: 'switch final state, whole episode and safe success; hover or tap a square for that run’s checks.',
-      reveals: '38 of 83 graded runs that look finished under final-state grading fail the whole-episode safety check.',
+      reveals: '64 of 83 graded runs pass the final-state check; 38 of those are not a safe success once the whole episode is graded.',
     },
     h: 420,
   },
@@ -490,11 +489,11 @@ const projects: { id: string; name: string; tag: string; href: string; body: str
     name: 'Spacewind',
     tag: 'physics engine · c11',
     href: 'https://github.com/jadenfix/space-simulation-engine',
-    body: 'A dependency-free engine for asking whether a spacecraft can sail on sunlight, solar wind and gravity: Boris-pushed plasma, Parker solar wind, Kerr geodesics, particle-in-cell. Its assurance run passes about 233,000 checks. Below, the same physics in real time.',
+    body: 'A dependency-free engine for asking whether a spacecraft can sail on sunlight, solar wind and gravity: Boris-pushed plasma, Parker solar wind, Schwarzschild and Kerr geodesics, particle-in-cell. Its assurance run passes about 233,000 checks. Below, the same physics in real time.',
     Comp: SpacewindLab,
     note: {
-      how: 'pick a mode; in magnetosphere drag to rotate and set energy, pitch angle and particle type; in solar wind change the coronal temperature and toggle the sails.',
-      reveals: 'trapped particles gyrate, bounce and drift with periods that match theory live; a hotter corona gives a faster wind and a looser spiral; sails spiral a craft outward.',
+      how: 'pick a mode; in magnetosphere drag to rotate and set energy, pitch angle and particle type; in solar wind change the coronal temperature and toggle the sails; in orbit set the size and eccentricity and compare against the Newtonian ellipse.',
+      reveals: 'trapped particles gyrate, bounce and drift with periods that match theory live; a hotter corona gives a faster wind and a looser spiral; sails spiral a craft outward; close to the hole, orbits precess by the exact general-relativistic amount.',
     },
     h: 560,
   },
@@ -503,8 +502,8 @@ const projects: { id: string; name: string; tag: string; href: string; body: str
     name: 'simulation-theory',
     tag: 'theory · python',
     href: 'https://github.com/jadenfix/simulation-theory',
-    more: { name: 'the field guide, with three papers', href: '#/simulation' },
-    body: 'What could you actually learn about whether the world is simulated? If a simulation reproduces the same observable law as ordinary physics, nothing: the Bayes factor is exactly 1. The repo maps where that boundary bends, with typed theorems, model results and finite checks. Below, run the experiments yourself.',
+    more: { name: 'full page, with the papers', href: '#/simulation' },
+    body: 'What could you learn about whether the world is simulated? If a simulation reproduces the same observable law as ordinary physics, nothing: the Bayes factor is exactly 1. The repo maps where that boundary bends, with typed theorems, model results and finite checks. Below, run the experiments yourself.',
     Comp: SimulationDemo,
     note: {
       how: 'on the evidence tab choose same law, biased or coarsened and watch the log Bayes factor; on the bell test tab replay the real Delft trials.',
@@ -520,7 +519,7 @@ const projects: { id: string; name: string; tag: string; href: string; body: str
     body: 'Time-travel debugging for agent runs. Fork any step, patch it, and replay only what’s downstream in a sealed snapshot of the original workspace, then diff against the original. Below is a real recorded run that fails its tests, and four real forks that each fix it a different way.',
     Comp: ReplayDemo,
     note: {
-      how: 'let the tour run, or pick a fork (prompt, shell env, file, tool output) and read the plan, the commands that actually re-ran, and the diff.',
+      how: 'let the tour run, or pick a fork (prompt, shell env, file, tool output) and read the plan, the commands that re-ran, and the diff.',
       reveals: 'only downstream spans re-run, in a hermetic sandbox so the live repo never changes; each patch turns the failing 5/1 run into a passing one, and the tool fork shows how a run can go green for the wrong reason.',
     },
     h: 560,
@@ -530,7 +529,7 @@ const projects: { id: string; name: string; tag: string; href: string; body: str
     name: 'DRL4MM',
     tag: 'reinforcement learning · python',
     href: 'https://github.com/jadenfix/DRL4MM',
-    body: 'A soft actor-critic market maker trained on three weeks of real Binance order flow for BTC, ETH and LTC (calm, typical and volatile weeks), then tested on held-out days and on SOL, which it never saw. Its quotes run live in your browser through a queue-position simulator that matches the Python one fill for fill. Honest result: it beats the old TD3 by a lot but does not beat a well-tuned fixed quote yet.',
+    body: 'A soft actor-critic market maker trained on three weeks of real Binance order flow for BTC, ETH and LTC (calm, typical and volatile weeks), then tested on held-out days and on SOL, which it never saw. Its quotes run live in your browser through a queue-position simulator that matches the Python one fill for fill. It beats the old TD3 by a lot but doesn’t beat a well-tuned fixed quote yet.',
     Comp: MarketMakerDemo,
     note: {
       how: 'pick a coin, then watch the trained agent and the best baseline quote the same held-out minutes side by side; the table underneath has the test results with intervals.',
@@ -547,7 +546,7 @@ const projects: { id: string; name: string; tag: string; href: string; body: str
     Comp: InftyThinkDemo,
     note: {
       how: 'pick a problem and watch both lanes stream.',
-      reveals: 'InftyThink keeps its context bounded by short summaries while chain-of-thought’s context grows with the trace; on these short problems plain chain-of-thought is actually shorter, and summaries from a small untrained model ramble.',
+      reveals: 'InftyThink keeps its context bounded by short summaries while chain-of-thought’s context grows with the trace; on these short problems plain chain-of-thought is shorter, and summaries from a small untrained model ramble.',
     },
     h: 620,
   },
@@ -559,9 +558,6 @@ function Projects() {
       <Rule />
       <SectionHead n="02" label="projects" title="Things I’ve built" />
       <div className="mt-14 space-y-28">
-        <Reveal>
-          <Rusty />
-        </Reveal>
         {projects.map((p) => (
           <Reveal key={p.id}>
             <div id={p.id} className="mb-7 grid scroll-mt-24 gap-4 lg:grid-cols-12">
@@ -591,7 +587,6 @@ function Projects() {
         <ul className="mt-4 space-y-3 text-[13px] md:col-span-9 md:mt-0">
           {[
             { name: 'trading', href: 'https://github.com/jadenfix/trading', body: 'Rust bots on Kalshi, with a socket bridge so an agent can drive them.' },
-            { name: 'Palette', href: 'https://github.com/jadenfix/palette', body: 'An eval gate with its own statistics engine that can answer pass, fail, or inconclusive.' },
             { name: 'Bayesian CNN', href: 'https://github.com/jadenfix/Bayesian-Neural-Network-for-CIFAR-10-Image-Classification', body: 'A Bayesian convolutional network on CIFAR-10 with TensorFlow Probability.' },
             { name: 'everything else', href: 'https://github.com/jadenfix?tab=repositories', body: 'About a hundred public repositories.' },
           ].map((r) => (
@@ -612,7 +607,7 @@ function Writing() {
   return (
     <section id="writing" className="page">
       <Rule />
-      <SectionHead n="04" label="writing" title="Notes" />
+      <SectionHead n="06" label="writing" title="Notes" />
       <div className="mt-12 md:grid md:grid-cols-12">
         <ul className="md:col-span-9 md:col-start-4">
           {posts.map((p) => (
@@ -636,7 +631,7 @@ function Tempera() {
   return (
     <section id="tempera" className="page">
       <Rule />
-      <SectionHead n="05" label="tempera" title="An agent platform, from first principles">
+      <SectionHead n="03" label="tempera" title="An agent platform">
         Something I’m building on my own time, mostly in Rust. Agents that act in the real world should do it under explicit authority, inside a
         sandbox, with memory they can cite and a receipt for everything consequential.
       </SectionHead>
@@ -668,7 +663,7 @@ function OpenSource() {
   return (
     <section id="open-source" className="page">
       <Rule />
-      <SectionHead n="06" label="open source" title="Merged upstream" />
+      <SectionHead n="05" label="open source" title="Merged upstream" />
       <div className="mt-12 md:grid md:grid-cols-12">
         <ul className="md:col-span-9 md:col-start-4">
           {upstream.map((u) => (
@@ -724,7 +719,7 @@ function Contact() {
           <h2 className="display text-[42px] leading-[1.05] sm:text-[64px]">
             Building something <em className="italic text-phos">interesting</em>?
             <br />
-            My DMs are open.
+            Say hi.
           </h2>
         </Reveal>
         <Reveal delay={0.25} className="mt-10 flex flex-wrap justify-center gap-x-8 gap-y-3 text-[13px]">
@@ -748,12 +743,19 @@ function Home() {
     <main>
       <Hero />
       <Index />
+      {/* index row 01: the agent, straight after the index */}
+      <section className="page">
+        <Rule />
+        <Reveal>
+          <Rusty />
+        </Reveal>
+      </section>
       <Research />
       <Projects />
-      <Experience />
-      <Writing />
       <Tempera />
+      <Experience />
       <OpenSource />
+      <Writing />
       <MemoriesSection />
       <Contact />
     </main>

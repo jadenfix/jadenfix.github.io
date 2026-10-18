@@ -130,7 +130,7 @@ export default function BellAnytime({ delft }: { delft: Delft }) {
             trial<span className="block tabular-nums text-bone">{cur.n}</span>
           </span>
           <span className="text-faint">
-            wins<span className="block tabular-nums text-bone">{cur.n ? `${((cur.k / cur.n) * 100).toFixed(1)}%` : '–'}</span>
+            wins<span className="block tabular-nums text-bone">{cur.n ? `${((cur.k / cur.n) * 100).toFixed(1)}%` : '…'}</span>
           </span>
           <span className="text-faint">
             bettor<span className="block tabular-nums text-phos">{cur.mix.toFixed(2)}</span>

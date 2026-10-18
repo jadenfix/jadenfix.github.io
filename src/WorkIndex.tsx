@@ -147,13 +147,13 @@ type Row = { key: string; n: string; name: string; kind: string; line: string; h
 const rows: Row[] = [
   { key: 'rusty', n: '01', name: 'rusty', kind: 'coding agent', line: 'a coding agent in one Rust binary, working', href: '#rusty' },
   { key: 'credit', n: '02', name: 'loop-action bias', kind: 'paper', line: 'the paper’s scorers, running live', href: '#branch-aware' },
-  { key: 'regimes', n: '03', name: 'bear-market regimes', kind: 'thesis', line: '150 years of the S&P 500, two regimes', href: '#predictive-stochastic-modeling' },
-  { key: 'transport', n: '04', name: 'critique transport', kind: 'research', line: 'Sinkhorn on real model latents', href: '#critique-transport' },
+  { key: 'regimes', n: '03', name: 'bear-market regimes', kind: 'thesis', line: 'US stocks since 1871, two regimes', href: '#predictive-stochastic-modeling' },
+  { key: 'transport', n: '04', name: 'critique transport', kind: 'research', line: 'Sinkhorn on a tiny model’s latents', href: '#critique-transport' },
   { key: 'bench', n: '05', name: 'FullStack-Bench', kind: 'benchmark', line: 'runs that passed, then turned out unsafe', href: '#fullstack-bench' },
   { key: 'spacewind', n: '06', name: 'Spacewind', kind: 'physics', line: 'radiation belts, solar wind, black holes', href: '#spacewind' },
   { key: 'simulation', n: '07', name: 'simulation-theory', kind: 'theory', line: 'can you tell if a world is simulated?', href: '#simulation-theory' },
   { key: 'replay', n: '08', name: 'ReplayKit', kind: 'debugger', line: 'fork an agent run, replay downstream', href: '#replaykit' },
-  { key: 'mm', n: '09', name: 'DRL4MM', kind: 'reinforcement learning', line: 'a market maker on real BTC, ETH, SOL, LTC flow', href: '#drl4mm' },
+  { key: 'mm', n: '09', name: 'DRL4MM', kind: 'reinforcement learning', line: 'trained on BTC, ETH, LTC; tested on SOL', href: '#drl4mm' },
   { key: 'infty', n: '10', name: 'InftyThink', kind: 'reasoning', line: 'bounded-context reasoning, real traces', href: '#inftythink' },
 ];
 

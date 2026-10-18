@@ -2,10 +2,10 @@ import { useRef } from 'react';
 import { useReveal } from './scroll';
 
 const photos = [
-  { src: '/media/mem-whiteout.jpg', caption: 'whiteout, donner summit', tall: true },
-  { src: '/media/mem-spring.jpg', caption: 'eastern sierra, late light', tall: false },
-  { src: '/media/mem-bivy.jpg', caption: 'bivy, 10,000 ft', tall: true },
-  { src: '/media/mem-descent.jpg', caption: 'avalanche gulch, shasta', tall: true },
+  { src: '/media/mem-whiteout.jpg', caption: 'donner summit', tall: true },
+  { src: '/media/mem-spring.jpg', caption: 'eastern sierra', tall: false },
+  { src: '/media/mem-bivy.jpg', caption: '10,000 ft', tall: true },
+  { src: '/media/mem-descent.jpg', caption: 'avalanche gulch, mount shasta', tall: true },
 ];
 
 function Photo({ p }: { p: (typeof photos)[number] }) {

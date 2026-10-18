@@ -66,7 +66,7 @@ export default function CommandBar() {
       { name: 'research', hint: 'papers, each with live figures', run: jump('research') },
       { name: 'tempera', hint: 'the agent platform', run: jump('tempera') },
       { name: 'rusty', hint: 'watch the coding agent work', run: jump('rusty') },
-      { name: 'projects', hint: 'everything else', run: jump('projects') },
+      { name: 'projects', hint: 'things I’ve built', run: jump('projects') },
       { name: 'simulation', hint: 'does the world render when nobody’s looking?', run: () => void (window.location.hash = '/simulation') },
       { name: 'experience', hint: 'where I’ve worked', run: jump('experience') },
       { name: 'memories', hint: 'away from the keyboard', run: jump('memories') },
@@ -188,7 +188,7 @@ export default function CommandBar() {
                     </button>
                   </li>
                 ))}
-                {shown.length === 0 && <li className="px-4 py-3 text-[12px] text-faint">command not found. try “work”.</li>}
+                {shown.length === 0 && <li className="px-4 py-3 text-[12px] text-faint">command not found. try “research”.</li>}
               </ul>
             )}
           </motion.div>

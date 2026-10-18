@@ -28,7 +28,7 @@ const simPapers = [
   },
   {
     slug: 'identifiability-and-randomness-as-resources',
-    title: 'Identifiability and randomness as resources',
+    title: 'Identification, evidence caps, and the price of shared randomness',
     line: 'What an observable law can pin down is a different question from what evidence or a fair coin can buy. Three exact finite answers.',
     pages: 19,
   },
@@ -114,8 +114,8 @@ export default function SimulationPage() {
 
       <Section n="01" label="the boundary" title="A perfect copy leaves nothing to find">
         <P>
-          One of these streams is NIST’s randomness beacon: hardware entropy, published once a minute. The other is a program running in your browser, a deterministic
-          generator seeded once. One of them is literally a simulation. Each keeps a running Bayes factor for “this source is biased”.
+          One of these streams is NIST’s randomness beacon: hardware entropy, published once a minute. The other is your browser’s crypto.getRandomValues, a program
+          that stretches a little seed entropy into as many bits as you ask for. One of them is literally a simulation. Each keeps a running Bayes factor for “this source is biased”.
         </P>
         <Instrument
           how="Watch both streams for a while, then pick the one you think is the program. Which column is which is shuffled every visit."
@@ -133,7 +133,7 @@ export default function SimulationPage() {
               and your browser just re-checked {chain[0]} of {chain[1]} SHA-512 commitments that chain each pulse to the next.{' '}
             </>
           )}
-          The amber line is the evidence for “biased” as the bits come in. It ends at −6.03 nats, mild evidence that the beacon is fair. The pale band is a sandwich
+          The amber line is the evidence for “biased” as the bits come in. It ends at −6.03 nats, about where fair bits should land, since this test drifts down like −½ ln n. The pale band is a sandwich
           the line can never leave, for any sequence at all, and it pins the evidence to within 0.47 nats.
         </P>
         <Instrument
@@ -148,7 +148,7 @@ export default function SimulationPage() {
         <P>
           In 2015 a Delft team ran the first loophole-free Bell test, with electron spins 1.3 km apart. Each of the 245 trials either wins a game that no classical world
           can win more than 3/4 of the time, or doesn’t. They won 80%, and the published p-value is 0.039. That number assumes 245 was fixed before anyone looked. If
-          you allow stopping whenever the data look good, which is how evidence actually gets read, you need a bettor whose winnings stay honest at every step.
+          you allow stopping whenever the data look good, which is how evidence usually gets read, you need a bettor whose winnings stay honest at every step.
         </P>
         <Instrument
           how="It plays once on its own. Scrub or replay to watch the bettor’s winnings trial by trial. Amber is a bettor fixed in advance; the pale dashes are the most any constant bet could have made, picked with hindsight."
@@ -161,7 +161,7 @@ export default function SimulationPage() {
       <Section n="04" label="precision" title="Five bits is enough to pass">
         <P>
           Suppose the renderer stores every probability as a fraction with denominator D, a fixed number of bits. That’s an economy a simulator might make. On the
-          settings a Bell test actually uses, it barely shows.
+          settings a Bell test uses, it barely shows.
         </P>
         <Instrument
           how="Pick a precision. The ticks are the CHSH values the renderer can hit while still looking like ordinary, slightly noisy physics. Amber ticks land inside what Delft measured."
