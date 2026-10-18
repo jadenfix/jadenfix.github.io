@@ -1,16 +1,16 @@
-import { useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
-import { clockAt, minutesAt, partOfDay, positionAt } from './palette';
-import { setTime, useTime } from './theme';
+import { useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { clockAt, minutesAt, partOfDay, positionAt } from "./palette";
+import { setTime, useTime } from "./theme";
 
 // The theme control: the sun's path from noon to midnight, drawn as a dotted
 // arc over a horizon. The sun is the thumb. Drag it down past the horizon and
 // the page follows it into the night. Above the horizon it glows; below, it is
 // a small ring, the sun you can't see. A role="slider" with the usual keys.
 
-const W = 76; // drawn width of the path, px
-const H = 22;
-const PAD = 4;
-const AMP = 7; // how high the sun climbs above the horizon, px
+const W = 112; // drawn width of the path, px
+const H = 28;
+const PAD = 7;
+const AMP = 9; // how high the sun climbs above the horizon, px
 const STEP = 10; // minutes per arrow press
 
 const xAt = (p: number) => PAD + p * (W - 2 * PAD);
@@ -18,10 +18,10 @@ const xAt = (p: number) => PAD + p * (W - 2 * PAD);
 const yAt = (p: number) => H / 2 - AMP * Math.cos(Math.PI * p);
 
 const path = (from: number, to: number) => {
-  let d = '';
+  let d = "";
   for (let i = 0; i <= 24; i++) {
     const p = from + ((to - from) * i) / 24;
-    d += `${i ? 'L' : 'M'}${xAt(p).toFixed(2)} ${yAt(p).toFixed(2)}`;
+    d += `${i ? "L" : "M"}${xAt(p).toFixed(2)} ${yAt(p).toFixed(2)}`;
   }
   return d;
 };
@@ -37,7 +37,10 @@ export default function TimeDial() {
 
   const fromPointer = (e: PointerEvent) => {
     const r = track.current!.getBoundingClientRect();
-    return (e.clientX - r.left - (PAD * r.width) / W) / (r.width * (1 - (2 * PAD) / W));
+    return (
+      (e.clientX - r.left - (PAD * r.width) / W) /
+      (r.width * (1 - (2 * PAD) / W))
+    );
   };
 
   const onDown = (e: PointerEvent<HTMLDivElement>) => {
@@ -61,12 +64,14 @@ export default function TimeDial() {
     const big = e.shiftKey ? 60 : STEP;
     let next: number | null = null;
     let sweep = false;
-    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') next = positionAt(m + big);
-    else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') next = positionAt(m - big);
-    else if (e.key === 'PageUp') [next, sweep] = [positionAt(m + 60), true];
-    else if (e.key === 'PageDown') [next, sweep] = [positionAt(m - 60), true];
-    else if (e.key === 'Home') [next, sweep] = [0, true];
-    else if (e.key === 'End') [next, sweep] = [1, true];
+    if (e.key === "ArrowRight" || e.key === "ArrowUp")
+      next = positionAt(m + big);
+    else if (e.key === "ArrowLeft" || e.key === "ArrowDown")
+      next = positionAt(m - big);
+    else if (e.key === "PageUp") [next, sweep] = [positionAt(m + 60), true];
+    else if (e.key === "PageDown") [next, sweep] = [positionAt(m - 60), true];
+    else if (e.key === "Home") [next, sweep] = [0, true];
+    else if (e.key === "End") [next, sweep] = [1, true];
     if (next === null) return;
     e.preventDefault();
     setTime(next, { sweep });
@@ -80,65 +85,154 @@ export default function TimeDial() {
   const name = partOfDay(p);
   const clock = clockAt(p);
 
+  const jump = (to: number) => setTime(to, { sweep: true });
+  const END =
+    "hidden h-7 w-6 items-center justify-center text-[13px] leading-none transition-colors sm:flex";
+
   return (
-    <div
-      role="slider"
-      tabIndex={0}
-      aria-label="Time of day. Sets the page's colours, from noon, light, to midnight, dark"
-      aria-valuemin={720}
-      aria-valuemax={1440}
-      aria-valuenow={Math.round(minutesAt(p))}
-      aria-valuetext={`${clock}, ${name}`}
-      aria-orientation="horizontal"
-      data-cursor="hot"
-      onKeyDown={onKey}
-      onPointerDown={onDown}
-      onPointerMove={onMove}
-      onPointerUp={onUp}
-      onPointerCancel={onUp}
-      onFocus={() => setActive(true)}
-      onBlur={() => setActive(false)}
-      onMouseEnter={() => setActive(true)}
-      onMouseLeave={() => !dragging.current && setActive(false)}
-      className="group relative -my-2 flex select-none items-center gap-2 py-2 text-[11px] text-faint"
-      style={{ touchAction: 'pan-y' }}
-      title="time of day: drag the sun"
-    >
-      <svg ref={track} width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden className="block overflow-visible">
-        <defs>
-          <radialGradient id="sun-glow">
-            <stop offset="0%" style={{ stopColor: 'rgb(var(--c-phos))', stopOpacity: 0.55 }} />
-            <stop offset="100%" style={{ stopColor: 'rgb(var(--c-phos))', stopOpacity: 0 }} />
-          </radialGradient>
-        </defs>
-        {/* the horizon, with a tick at each stop of the day */}
-        <line x1={0} x2={W} y1={H / 2} y2={H / 2} className="stroke-line" strokeWidth={1} />
-        {TICKS.map((t) => (
-          <line key={t} x1={xAt(t)} x2={xAt(t)} y1={H / 2 - 1.5} y2={H / 2 + 1.5} className="stroke-faint/60" strokeWidth={1} />
-        ))}
-        {/* the sun's path: brighter above the horizon, fainter under it */}
-        <path d={DAY} fill="none" className="stroke-dim/80" strokeWidth={1} strokeLinecap="round" strokeDasharray="0.01 3" />
-        <path d={NIGHT} fill="none" className="stroke-faint/70" strokeWidth={1} strokeLinecap="round" strokeDasharray="0.01 3" />
-        <circle cx={sx} cy={sy} r={4 + 6 * glow + (active ? 2 : 0)} fill="url(#sun-glow)" opacity={0.35 + 0.65 * glow} />
-        {up ? (
-          <circle cx={sx} cy={sy} r={active ? 3.2 : 2.6} className="fill-phos" />
-        ) : (
-          <>
-            <circle cx={sx} cy={sy} r={active ? 3.6 : 3} className="fill-void stroke-phos" strokeWidth={1} />
-            <circle cx={sx} cy={sy} r={1} className="fill-phos" />
-          </>
-        )}
-      </svg>
-      <span className="tabular-nums text-dim transition-colors group-hover:text-bone">{clock}</span>
-      {/* the part of the day, while the dial is in hand */}
-      <span
-        aria-hidden
-        className={`pointer-events-none absolute left-0 top-full whitespace-nowrap text-[10px] lowercase tracking-[0.14em] text-phos transition-opacity duration-short ${
-          active ? 'opacity-100' : 'opacity-0'
-        }`}
+    <div className="flex items-center gap-1">
+      <button
+        type="button"
+        onClick={() => jump(0)}
+        className={`${END} ${p < 0.02 ? "text-phos" : "text-faint hover:text-phos"}`}
+        aria-label="Noon: light"
+        title="noon"
       >
-        {name}
-      </span>
+        ☀
+      </button>
+      <div
+        role="slider"
+        tabIndex={0}
+        aria-label="Time of day. Sets the page's colours, from noon, light, to midnight, dark"
+        aria-valuemin={720}
+        aria-valuemax={1440}
+        aria-valuenow={Math.round(minutesAt(p))}
+        aria-valuetext={`${clock}, ${name}`}
+        aria-orientation="horizontal"
+        data-cursor="hot"
+        onKeyDown={onKey}
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerCancel={onUp}
+        onFocus={() => setActive(true)}
+        onBlur={() => setActive(false)}
+        onMouseEnter={() => setActive(true)}
+        onMouseLeave={() => !dragging.current && setActive(false)}
+        className="group relative -my-2 flex cursor-pointer select-none items-center gap-2 rounded-sm px-1 py-2 text-[11px] text-faint transition-colors hover:bg-panel/60"
+        style={{ touchAction: "pan-y" }}
+        title="time of day: drag the sun to change the colours"
+      >
+        <svg
+          ref={track}
+          width={W}
+          height={H}
+          viewBox={`0 0 ${W} ${H}`}
+          aria-hidden
+          className="block overflow-visible"
+        >
+          <defs>
+            <radialGradient id="sun-glow">
+              <stop
+                offset="0%"
+                style={{ stopColor: "rgb(var(--c-phos))", stopOpacity: 0.55 }}
+              />
+              <stop
+                offset="100%"
+                style={{ stopColor: "rgb(var(--c-phos))", stopOpacity: 0 }}
+              />
+            </radialGradient>
+          </defs>
+          {/* the horizon, with a tick at each stop of the day */}
+          <line
+            x1={0}
+            x2={W}
+            y1={H / 2}
+            y2={H / 2}
+            className="stroke-faint/50"
+            strokeWidth={1}
+          />
+          {TICKS.map((t) => (
+            <line
+              key={t}
+              x1={xAt(t)}
+              x2={xAt(t)}
+              y1={H / 2 - 1.5}
+              y2={H / 2 + 1.5}
+              className="stroke-faint/60"
+              strokeWidth={1}
+            />
+          ))}
+          {/* the sun's path: brighter above the horizon, fainter under it */}
+          <path
+            d={DAY}
+            fill="none"
+            className="stroke-dim"
+            strokeWidth={1.4}
+            strokeLinecap="round"
+          />
+          <path
+            d={NIGHT}
+            fill="none"
+            className="stroke-faint"
+            strokeWidth={1.4}
+            strokeLinecap="round"
+            strokeDasharray="2 2.5"
+          />
+          {/* the part of the arc already travelled, lit */}
+          <path
+            d={path(0, Math.max(0.0001, p))}
+            fill="none"
+            className="stroke-phos/70"
+            strokeWidth={1.6}
+            strokeLinecap="round"
+          />
+          <circle
+            cx={sx}
+            cy={sy}
+            r={4 + 6 * glow + (active ? 2 : 0)}
+            fill="url(#sun-glow)"
+            opacity={0.35 + 0.65 * glow}
+          />
+          {up ? (
+            <circle
+              cx={sx}
+              cy={sy}
+              r={active ? 5.5 : 4.5}
+              className="fill-phos"
+            />
+          ) : (
+            <>
+              <circle
+                cx={sx}
+                cy={sy}
+                r={active ? 5.5 : 4.5}
+                className="fill-void stroke-phos"
+                strokeWidth={1.4}
+              />
+              <circle cx={sx} cy={sy} r={1.6} className="fill-phos" />
+            </>
+          )}
+        </svg>
+        <span className="flex flex-col leading-[1.15]">
+          <span className="tabular-nums text-bone">{clock}</span>
+          <span
+            aria-hidden
+            className="text-[10px] lowercase tracking-[0.1em] text-phos/90"
+          >
+            {name}
+          </span>
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={() => jump(1)}
+        className={`${END} ${p > 0.98 ? "text-phos" : "text-faint hover:text-phos"}`}
+        aria-label="Midnight: dark"
+        title="midnight"
+      >
+        ☾
+      </button>
     </div>
   );
 }

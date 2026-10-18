@@ -6,6 +6,7 @@ import Cursor from './Cursor';
 import { Markdown } from './Markdown';
 import Memories from './Memories';
 import RustyPlayer from './RustyPlayer';
+import AmbientField from './sim/AmbientField';
 import RenderField from './sim/RenderField';
 import TimeDial from './TimeDial';
 import WorkIndex from './WorkIndex';
@@ -455,7 +456,7 @@ function Research() {
 function SimPortal() {
   return (
     <Reveal className="mt-28">
-      <a href="#/simulation" className="group relative block h-[260px] overflow-hidden border border-line sm:h-[300px]">
+      <a href="#/simulation" className="group relative block h-[260px] overflow-hidden border border-line bg-void sm:h-[300px]">
         <RenderField className="absolute inset-0 opacity-90 transition-opacity duration-700 group-hover:opacity-100" />
         <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgb(var(--c-void)/0.94)_0%,rgb(var(--c-void)/0.7)_45%,transparent_80%)]" />
         <span className="relative flex h-full max-w-[560px] flex-col justify-end p-6 sm:p-9">
@@ -910,9 +911,14 @@ export default function App() {
     // framer-motion follows the OS reduced-motion setting everywhere
     <MotionConfig reducedMotion="user">
       <div className="grain min-h-screen">
+        <AmbientField />
         <Header pageKey={pageKey} />
-        <div key={pageKey}>{page}</div>
-        <Footer />
+        <div key={pageKey} className="relative z-[1]">
+          {page}
+        </div>
+        <div className="relative z-[1]">
+          <Footer />
+        </div>
         <CommandBar />
         <Cursor />
         <RouteVeil pageKey={pageKey} />

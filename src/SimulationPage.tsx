@@ -89,7 +89,7 @@ export default function SimulationPage() {
   return (
     <main>
       {/* the world, rendered where you look */}
-      <section className="relative h-[86vh] min-h-[560px] overflow-hidden">
+      <section className="relative h-[86vh] min-h-[560px] overflow-hidden bg-void">
         <RenderField className="absolute inset-0" />
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_top,rgb(var(--c-void))_0%,rgb(var(--c-void)/0.88)_50%,transparent_78%)] sm:bg-[radial-gradient(ellipse_at_20%_85%,rgb(var(--c-void)/0.92),rgb(var(--c-void)/0.55)_38%,transparent_70%)]" />
         <div className="page pointer-events-none relative flex h-full flex-col justify-end pb-14">
