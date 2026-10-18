@@ -8,6 +8,7 @@ export type RowState =
   | { kind: 'recorded'; status: SpanStatus }
   | { kind: 'dirty'; status: SpanStatus; reasons: DirtyReason[]; blocked: boolean }
   | { kind: 'cached'; status: SpanStatus }
+  | { kind: 'rollup'; status: SpanStatus; changed: boolean } // container: status re-derived from replayed children
   | { kind: 'queued'; status: SpanStatus }
   | { kind: 'running' }
   | { kind: 'replayed'; status: SpanStatus; changed: boolean };
@@ -68,13 +69,17 @@ export function Tree({
           const isSel = selected === s.id;
           const dim = st.kind === 'cached';
           const dirty = st.kind === 'dirty' || st.kind === 'running' || st.kind === 'queued' || st.kind === 'replayed';
+          const derived = st.kind === 'rollup';
           let tag: { text: string; color: string; pulse?: boolean };
           switch (st.kind) {
             case 'dirty':
-              tag = st.blocked ? { text: 'no executor', color: '#c4ccde' } : { text: REASON_SHORT[st.reasons[0]], color: '#e8a96a' };
+              tag = st.blocked ? { text: 'blocked', color: '#c4ccde' } : { text: REASON_SHORT[st.reasons[0]], color: '#e8a96a' };
               break;
             case 'cached':
               tag = { text: 'reused', color: '#58554e' };
+              break;
+            case 'rollup':
+              tag = { text: st.changed ? st.status.toLowerCase() : 'from children', color: st.changed ? STATUS_COLOR[st.status] : '#8d887c' };
               break;
             case 'queued':
               tag = { text: 'queued', color: '#8d887c' };
@@ -97,7 +102,13 @@ export function Tree({
                 aria-pressed={isSel}
                 aria-label={`step ${s.seq}, ${KIND_SHORT[s.kind]} ${s.name}, ${tag.text}`}
                 className={`group flex h-full w-full items-center gap-2 border-l pr-2 text-left text-[11.5px] transition-[background-color,border-color,opacity] duration-300 focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-phos ${
-                  isSel ? 'border-phos bg-phos/[0.07]' : dirty ? 'border-phos/50 bg-phos/[0.03] hover:bg-bone/[0.04]' : 'border-transparent hover:bg-bone/[0.04]'
+                  isSel
+                    ? 'border-phos bg-phos/[0.07]'
+                    : dirty
+                      ? 'border-phos/50 bg-phos/[0.03] hover:bg-bone/[0.04]'
+                      : derived
+                        ? 'border-dashed border-phos/30 hover:bg-bone/[0.04]'
+                        : 'border-transparent hover:bg-bone/[0.04]'
                 } ${dim ? 'opacity-45' : ''}`}
                 style={{ paddingLeft: 6 + (depthOf.get(s.id) ?? 0) * 12 }}
               >
@@ -105,7 +116,7 @@ export function Tree({
                 <span className={`min-w-0 flex-1 truncate ${isSel ? 'text-bone' : 'text-bone/85'}`}>{s.name}</span>
                 <span className={`shrink-0 text-right text-[10px] ${tag.pulse ? 'animate-breathe' : ''}`} style={{ color: tag.color }}>
                   {tag.text}
-                  {st.kind === 'replayed' && st.changed ? <span className="text-phos"> *</span> : null}
+                  {(st.kind === 'replayed' || st.kind === 'rollup') && st.changed ? <span className="text-phos"> *</span> : null}
                 </span>
                 <span className="relative hidden h-[5px] w-[96px] shrink-0 lg:block" aria-hidden>
                   <span className="absolute inset-y-[2px] left-0 right-0 bg-line" />

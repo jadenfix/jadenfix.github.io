@@ -1,1 +1,4292 @@
-{"meta":{"replaykit_commit":"461e1e9","recorded_with":"replaykit-collector (POST /v1/runs, /spans, /artifacts, /edges)","forked_with":"replaykit replay plan / replay fork (sqlite store, CompositeExecutorRegistry)","read_with":"replaykit serve (GET /api/v1/...)","paths":"relative to the throwaway workspace repo"},"run":{"run_id":"run-0000000000000001","title":"Fix login timeout bug","status":"Failed","duration_ms":2318,"adapter":"replaykit-collector-http"},"spans":[{"id":"root","parent":null,"seq":1,"kind":"Run","name":"Fix login timeout bug","status":"Failed","t0":170,"t1":2313,"policy":"record_only","executor":null,"error":"validation failed: 1 test still failing","attrs":{},"out":[],"out_fp":""},{"id":"plan_repro","parent":"root","seq":2,"kind":"PlannerStep","name":"Reproduce failure","status":"Completed","t0":184,"t1":782,"policy":"record_only","executor":null,"error":null,"attrs":{},"out":[],"out_fp":""},{"id":"read_issue","parent":"plan_repro","seq":3,"kind":"FileRead","name":"read ISSUE.md","status":"Completed","t0":193,"t1":244,"policy":"pure_reusable","executor":"fs.read","error":null,"attrs":{"path":"ISSUE.md"},"out":[{"id":"artifact-0000000000000001","type":"file_blob","text":"# Login hangs when the pool is exhausted\n\nSince the session refactor, `handle_login` never returns when every connection is taken.\nExpected: give up after LOGIN_TIMEOUT seconds and raise AuthTimeout."}],"out_fp":"4d2e51d9c9ce"},{"id":"select_tests","parent":"plan_repro","seq":4,"kind":"ToolCall","name":"select_tests","status":"Completed","t0":253,"t1":479,"policy":"rerunnable_supported","executor":"tool.select_tests","error":null,"attrs":{"argv":"git ls-files tests"},"out":[{"id":"artifact-0000000000000002","type":"tool_output","text":"tests/test_login.py\ntests/test_session.py"}],"out_fp":"30ebe06e5ad3"},{"id":"test_repro","parent":"plan_repro","seq":5,"kind":"ShellCommand","name":"run tests","status":"Failed","t0":500,"t1":762,"policy":"rerunnable_supported","executor":"shell","error":"command exited with code 1: FAILED test_login_timeout: RuntimeError: deadlock: acquire() blocked forever on an empty pool\nFAILED test_session_timeout: TypeError: init_session() got an unexpected keyword argument 'timeout'\n","attrs":{"command":"python3 run_tests.py tests/test_login.py tests/test_session.py","cwd":"."},"out":[{"id":"artifact-0000000000000003","type":"shell_stdout","text":"tests/test_login.py::test_invalid_credentials ... ok\ntests/test_login.py::test_login_basic ... ok\ntests/test_login.py::test_login_timeout ... FAILED\ntests/test_login.py::test_validate_credentials ... ok\ntests/test_session.py::test_init_session ... ok\ntests/test_session.py::test_session_timeout ... FAILED\nresult: FAILED. 4 passed; 2 failed"},{"id":"artifact-0000000000000004","type":"shell_stderr","text":"FAILED test_login_timeout: RuntimeError: deadlock: acquire() blocked forever on an empty pool\nFAILED test_session_timeout: TypeError: init_session() got an unexpected keyword argument 'timeout'"}],"out_fp":"14be30e192c9"},{"id":"plan_search","parent":"root","seq":6,"kind":"PlannerStep","name":"Search codebase","status":"Completed","t0":818,"t1":1264,"policy":"record_only","executor":null,"error":null,"attrs":{},"out":[],"out_fp":""},{"id":"search_repository","parent":"plan_search","seq":7,"kind":"ToolCall","name":"search_repository","status":"Completed","t0":854,"t1":931,"policy":"rerunnable_supported","executor":"tool.search_repository","error":null,"attrs":{"argv":"grep -rn acquire( auth"},"out":[{"id":"artifact-0000000000000005","type":"tool_output","text":"auth/session.py:2:    conn = pool.acquire()\nauth/pool.py:2:    \"\"\"A connection pool. acquire() with no timeout on an empty pool would block forever.\"\"\"\nauth/pool.py:7:    def acquire(self, timeout=None):\nauth/pool.py:12:            raise RuntimeError(\"deadlock: acquire() blocked forever on an empty pool\")"}],"out_fp":"614536ea3a2c"},{"id":"git_log","parent":"plan_search","seq":8,"kind":"ToolCall","name":"git_log","status":"Completed","t0":937,"t1":1137,"policy":"rerunnable_supported","executor":"tool.git_log","error":null,"attrs":{"argv":"git log --oneline -3"},"out":[{"id":"artifact-0000000000000006","type":"tool_output","text":"5ecaa27 issue: login hangs on an exhausted pool\n00e0174 tests: login and session timeouts\n71ed2c8 auth service: pool, session, login"}],"out_fp":"fb8f8508125b"},{"id":"read_session","parent":"plan_search","seq":9,"kind":"FileRead","name":"read auth/session.py","status":"Completed","t0":1153,"t1":1248,"policy":"pure_reusable","executor":"fs.read","error":null,"attrs":{"path":"auth/session.py"},"out":[{"id":"artifact-0000000000000007","type":"file_blob","text":"def init_session(pool):\n    conn = pool.acquire()\n    return {\"conn\": conn}"}],"out_fp":"e648ec42e3cf"},{"id":"plan_fix","parent":"root","seq":10,"kind":"PlannerStep","name":"Implement fix","status":"Completed","t0":1272,"t1":1637,"policy":"record_only","executor":null,"error":null,"attrs":{},"out":[],"out_fp":""},{"id":"gen_fix","parent":"plan_fix","seq":11,"kind":"LlmCall","name":"Generate fix","status":"Completed","t0":1283,"t1":1402,"policy":"rerunnable_supported","executor":"local.scripted-fixer","error":null,"attrs":{"model":"scripted-fixer","provider":"local"},"out":[{"id":"artifact-0000000000000008","type":"model_response","text":"def init_session(pool, timeout=None):\n    conn = pool.acquire(timeout=timeout)\n    return {\"conn\": conn}"}],"out_fp":"c973aaf88db9"},{"id":"write_fix","parent":"plan_fix","seq":12,"kind":"FileWrite","name":"write auth/session.py","status":"Completed","t0":1448,"t1":1628,"policy":"rerunnable_supported","executor":"fs.write","error":null,"attrs":{"path":"auth/session.py"},"out":[{"id":"artifact-0000000000000009","type":"file_diff","text":"diff --git a/auth/session.py b/auth/session.py\nindex 9738a3c..0005b6f 100644\n--- a/auth/session.py\n+++ b/auth/session.py\n@@ -1,3 +1,3 @@\n-def init_session(pool):\n-    conn = pool.acquire()\n+def init_session(pool, timeout=None):\n+    conn = pool.acquire(timeout=timeout)\n     return {\"conn\": conn}"}],"out_fp":"9722af8831e9"},{"id":"plan_validate","parent":"root","seq":13,"kind":"PlannerStep","name":"Validate fix","status":"Failed","t0":1649,"t1":2311,"policy":"record_only","executor":null,"error":"tests still failing after the fix","attrs":{},"out":[],"out_fp":""},{"id":"test_validate","parent":"plan_validate","seq":14,"kind":"ShellCommand","name":"run tests","status":"Failed","t0":1681,"t1":1980,"policy":"rerunnable_supported","executor":"shell","error":"command exited with code 1: FAILED test_login_timeout: RuntimeError: deadlock: acquire() blocked forever on an empty pool\n","attrs":{"command":"python3 run_tests.py tests/test_login.py tests/test_session.py","cwd":"."},"out":[{"id":"artifact-000000000000000a","type":"shell_stdout","text":"tests/test_login.py::test_invalid_credentials ... ok\ntests/test_login.py::test_login_basic ... ok\ntests/test_login.py::test_login_timeout ... FAILED\ntests/test_login.py::test_validate_credentials ... ok\ntests/test_session.py::test_init_session ... ok\ntests/test_session.py::test_session_timeout ... ok\nresult: FAILED. 5 passed; 1 failed"},{"id":"artifact-000000000000000b","type":"shell_stderr","text":"FAILED test_login_timeout: RuntimeError: deadlock: acquire() blocked forever on an empty pool"}],"out_fp":"4fa6afe498dd"},{"id":"diff_stat","parent":"plan_validate","seq":15,"kind":"ShellCommand","name":"git diff --stat","status":"Completed","t0":2009,"t1":2307,"policy":"rerunnable_supported","executor":"shell","error":null,"attrs":{"command":"git diff --stat","cwd":"."},"out":[{"id":"artifact-000000000000000c","type":"shell_stdout","text":" auth/session.py | 4 ++--\n 1 file changed, 2 insertions(+), 2 deletions(-)"}],"out_fp":"beece6915e13"}],"edges":[{"from":"select_tests","to":"read_issue","kind":"DataDependsOn"},{"from":"test_repro","to":"select_tests","kind":"DataDependsOn"},{"from":"read_session","to":"search_repository","kind":"DataDependsOn"},{"from":"gen_fix","to":"read_issue","kind":"DataDependsOn"},{"from":"gen_fix","to":"read_session","kind":"DataDependsOn"},{"from":"write_fix","to":"gen_fix","kind":"DataDependsOn"},{"from":"test_validate","to":"select_tests","kind":"DataDependsOn"},{"from":"test_validate","to":"write_fix","kind":"DataDependsOn"},{"from":"diff_stat","to":"write_fix","kind":"DataDependsOn"}],"plans":{"root":{"valid":["env_var_override","snapshot_override"],"invalid":{"prompt_edit":"error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind Run","model_config_edit":"error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind Run","tool_output_override":"error: [\"invalid_patch\"] patch ToolOutputOverride is not valid for span kind Run","retrieval_context_override":"error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind Run"},"plans":{"env_var_override":{"dirty":[{"id":"root","reasons":["patched_input"],"by":[]},{"id":"plan_repro","reasons":["dependency_unknown"],"by":["root"]},{"id":"read_issue","reasons":["dependency_unknown"],"by":["plan_repro"]},{"id":"select_tests","reasons":["dependency_unknown","upstream_output_changed"],"by":["plan_repro","read_issue"]},{"id":"test_repro","reasons":["dependency_unknown","upstream_output_changed"],"by":["plan_repro","select_tests"]},{"id":"plan_search","reasons":["dependency_unknown"],"by":["root"]},{"id":"search_repository","reasons":["dependency_unknown"],"by":["plan_search"]},{"id":"git_log","reasons":["dependency_unknown"],"by":["plan_search"]},{"id":"read_session","reasons":["dependency_unknown","upstream_output_changed"],"by":["plan_search","search_repository"]},{"id":"plan_fix","reasons":["dependency_unknown"],"by":["root"]},{"id":"gen_fix","reasons":["dependency_unknown","upstream_output_changed"],"by":["plan_fix","read_issue","read_session"]},{"id":"write_fix","reasons":["dependency_unknown","upstream_output_changed"],"by":["plan_fix","gen_fix"]},{"id":"plan_validate","reasons":["dependency_unknown"],"by":["root"]},{"id":"test_validate","reasons":["dependency_unknown","upstream_output_changed"],"by":["plan_validate","select_tests","write_fix"]},{"id":"diff_stat","reasons":["dependency_unknown","upstream_output_changed"],"by":["plan_validate","write_fix"]}],"blocked":["root","plan_repro","select_tests","plan_search","search_repository","git_log","plan_fix","plan_validate"],"reused":0},"snapshot_override":{"dirty":[{"id":"root","reasons":["patched_input"],"by":[]},{"id":"plan_repro","reasons":["dependency_unknown"],"by":["root"]},{"id":"read_issue","reasons":["dependency_unknown"],"by":["plan_repro"]},{"id":"select_tests","reasons":["dependency_unknown","upstream_output_changed"],"by":["plan_repro","read_issue"]},{"id":"test_repro","reasons":["dependency_unknown","upstream_output_changed"],"by":["plan_repro","select_tests"]},{"id":"plan_search","reasons":["dependency_unknown"],"by":["root"]},{"id":"search_repository","reasons":["dependency_unknown"],"by":["plan_search"]},{"id":"git_log","reasons":["dependency_unknown"],"by":["plan_search"]},{"id":"read_session","reasons":["dependency_unknown","upstream_output_changed"],"by":["plan_search","search_repository"]},{"id":"plan_fix","reasons":["dependency_unknown"],"by":["root"]},{"id":"gen_fix","reasons":["dependency_unknown","upstream_output_changed"],"by":["plan_fix","read_issue","read_session"]},{"id":"write_fix","reasons":["dependency_unknown","upstream_output_changed"],"by":["plan_fix","gen_fix"]},{"id":"plan_validate","reasons":["dependency_unknown"],"by":["root"]},{"id":"test_validate","reasons":["dependency_unknown","upstream_output_changed"],"by":["plan_validate","select_tests","write_fix"]},{"id":"diff_stat","reasons":["dependency_unknown","upstream_output_changed"],"by":["plan_validate","write_fix"]}],"blocked":["root","plan_repro","select_tests","plan_search","search_repository","git_log","plan_fix","plan_validate"],"reused":0}}},"plan_repro":{"valid":["env_var_override","snapshot_override"],"invalid":{"prompt_edit":"error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind PlannerStep","model_config_edit":"error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind PlannerStep","tool_output_override":"error: [\"invalid_patch\"] patch ToolOutputOverride is not valid for span kind PlannerStep","retrieval_context_override":"error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind PlannerStep"},"plans":{"env_var_override":{"dirty":[{"id":"plan_repro","reasons":["patched_input"],"by":[]},{"id":"read_issue","reasons":["dependency_unknown"],"by":["plan_repro"]},{"id":"select_tests","reasons":["dependency_unknown","upstream_output_changed"],"by":["plan_repro","read_issue"]},{"id":"test_repro","reasons":["dependency_unknown","upstream_output_changed"],"by":["plan_repro","select_tests"]},{"id":"gen_fix","reasons":["upstream_output_changed"],"by":["read_issue"]},{"id":"write_fix","reasons":["upstream_output_changed"],"by":["gen_fix"]},{"id":"test_validate","reasons":["upstream_output_changed"],"by":["select_tests","write_fix"]},{"id":"diff_stat","reasons":["upstream_output_changed"],"by":["write_fix"]}],"blocked":["plan_repro","select_tests"],"reused":7},"snapshot_override":{"dirty":[{"id":"plan_repro","reasons":["patched_input"],"by":[]},{"id":"read_issue","reasons":["dependency_unknown"],"by":["plan_repro"]},{"id":"select_tests","reasons":["dependency_unknown","upstream_output_changed"],"by":["plan_repro","read_issue"]},{"id":"test_repro","reasons":["dependency_unknown","upstream_output_changed"],"by":["plan_repro","select_tests"]},{"id":"gen_fix","reasons":["upstream_output_changed"],"by":["read_issue"]},{"id":"write_fix","reasons":["upstream_output_changed"],"by":["gen_fix"]},{"id":"test_validate","reasons":["upstream_output_changed"],"by":["select_tests","write_fix"]},{"id":"diff_stat","reasons":["upstream_output_changed"],"by":["write_fix"]}],"blocked":["plan_repro","select_tests"],"reused":7}}},"read_issue":{"valid":["env_var_override","snapshot_override"],"invalid":{"prompt_edit":"error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind FileRead","model_config_edit":"error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind FileRead","tool_output_override":"error: [\"invalid_patch\"] patch ToolOutputOverride is not valid for span kind FileRead","retrieval_context_override":"error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind FileRead"},"plans":{"env_var_override":{"dirty":[{"id":"read_issue","reasons":["patched_input"],"by":[]},{"id":"select_tests","reasons":["upstream_output_changed"],"by":["read_issue"]},{"id":"test_repro","reasons":["upstream_output_changed"],"by":["select_tests"]},{"id":"gen_fix","reasons":["upstream_output_changed"],"by":["read_issue"]},{"id":"write_fix","reasons":["upstream_output_changed"],"by":["gen_fix"]},{"id":"test_validate","reasons":["upstream_output_changed"],"by":["select_tests","write_fix"]},{"id":"diff_stat","reasons":["upstream_output_changed"],"by":["write_fix"]}],"blocked":["select_tests"],"reused":8},"snapshot_override":{"dirty":[{"id":"read_issue","reasons":["patched_input"],"by":[]},{"id":"select_tests","reasons":["upstream_output_changed"],"by":["read_issue"]},{"id":"test_repro","reasons":["upstream_output_changed"],"by":["select_tests"]},{"id":"gen_fix","reasons":["upstream_output_changed"],"by":["read_issue"]},{"id":"write_fix","reasons":["upstream_output_changed"],"by":["gen_fix"]},{"id":"test_validate","reasons":["upstream_output_changed"],"by":["select_tests","write_fix"]},{"id":"diff_stat","reasons":["upstream_output_changed"],"by":["write_fix"]}],"blocked":["select_tests"],"reused":8}}},"select_tests":{"valid":["tool_output_override","env_var_override","snapshot_override"],"invalid":{"prompt_edit":"error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind ToolCall","model_config_edit":"error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind ToolCall","retrieval_context_override":"error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind ToolCall"},"plans":{"tool_output_override":{"dirty":[{"id":"select_tests","reasons":["patched_input"],"by":[]},{"id":"test_repro","reasons":["upstream_output_changed"],"by":["select_tests"]},{"id":"test_validate","reasons":["upstream_output_changed"],"by":["select_tests"]}],"blocked":[],"reused":12},"env_var_override":{"dirty":[{"id":"select_tests","reasons":["patched_input"],"by":[]},{"id":"test_repro","reasons":["upstream_output_changed"],"by":["select_tests"]},{"id":"test_validate","reasons":["upstream_output_changed"],"by":["select_tests"]}],"blocked":["select_tests"],"reused":12},"snapshot_override":{"dirty":[{"id":"select_tests","reasons":["patched_input"],"by":[]},{"id":"test_repro","reasons":["upstream_output_changed"],"by":["select_tests"]},{"id":"test_validate","reasons":["upstream_output_changed"],"by":["select_tests"]}],"blocked":["select_tests"],"reused":12}}},"test_repro":{"valid":["env_var_override","snapshot_override"],"invalid":{"prompt_edit":"error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind ShellCommand","model_config_edit":"error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind ShellCommand","tool_output_override":"error: [\"invalid_patch\"] patch ToolOutputOverride is not valid for span kind ShellCommand","retrieval_context_override":"error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind ShellCommand"},"plans":{"env_var_override":{"dirty":[{"id":"test_repro","reasons":["patched_input"],"by":[]}],"blocked":[],"reused":14},"snapshot_override":{"dirty":[{"id":"test_repro","reasons":["patched_input"],"by":[]}],"blocked":[],"reused":14}}},"plan_search":{"valid":["env_var_override","snapshot_override"],"invalid":{"prompt_edit":"error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind PlannerStep","model_config_edit":"error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind PlannerStep","tool_output_override":"error: [\"invalid_patch\"] patch ToolOutputOverride is not valid for span kind PlannerStep","retrieval_context_override":"error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind PlannerStep"},"plans":{"env_var_override":{"dirty":[{"id":"plan_search","reasons":["patched_input"],"by":[]},{"id":"search_repository","reasons":["dependency_unknown"],"by":["plan_search"]},{"id":"git_log","reasons":["dependency_unknown"],"by":["plan_search"]},{"id":"read_session","reasons":["dependency_unknown","upstream_output_changed"],"by":["plan_search","search_repository"]},{"id":"gen_fix","reasons":["upstream_output_changed"],"by":["read_session"]},{"id":"write_fix","reasons":["upstream_output_changed"],"by":["gen_fix"]},{"id":"test_validate","reasons":["upstream_output_changed"],"by":["write_fix"]},{"id":"diff_stat","reasons":["upstream_output_changed"],"by":["write_fix"]}],"blocked":["plan_search","search_repository","git_log"],"reused":7},"snapshot_override":{"dirty":[{"id":"plan_search","reasons":["patched_input"],"by":[]},{"id":"search_repository","reasons":["dependency_unknown"],"by":["plan_search"]},{"id":"git_log","reasons":["dependency_unknown"],"by":["plan_search"]},{"id":"read_session","reasons":["dependency_unknown","upstream_output_changed"],"by":["plan_search","search_repository"]},{"id":"gen_fix","reasons":["upstream_output_changed"],"by":["read_session"]},{"id":"write_fix","reasons":["upstream_output_changed"],"by":["gen_fix"]},{"id":"test_validate","reasons":["upstream_output_changed"],"by":["write_fix"]},{"id":"diff_stat","reasons":["upstream_output_changed"],"by":["write_fix"]}],"blocked":["plan_search","search_repository","git_log"],"reused":7}}},"search_repository":{"valid":["tool_output_override","env_var_override","snapshot_override"],"invalid":{"prompt_edit":"error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind ToolCall","model_config_edit":"error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind ToolCall","retrieval_context_override":"error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind ToolCall"},"plans":{"tool_output_override":{"dirty":[{"id":"search_repository","reasons":["patched_input"],"by":[]},{"id":"read_session","reasons":["upstream_output_changed"],"by":["search_repository"]},{"id":"gen_fix","reasons":["upstream_output_changed"],"by":["read_session"]},{"id":"write_fix","reasons":["upstream_output_changed"],"by":["gen_fix"]},{"id":"test_validate","reasons":["upstream_output_changed"],"by":["write_fix"]},{"id":"diff_stat","reasons":["upstream_output_changed"],"by":["write_fix"]}],"blocked":[],"reused":9},"env_var_override":{"dirty":[{"id":"search_repository","reasons":["patched_input"],"by":[]},{"id":"read_session","reasons":["upstream_output_changed"],"by":["search_repository"]},{"id":"gen_fix","reasons":["upstream_output_changed"],"by":["read_session"]},{"id":"write_fix","reasons":["upstream_output_changed"],"by":["gen_fix"]},{"id":"test_validate","reasons":["upstream_output_changed"],"by":["write_fix"]},{"id":"diff_stat","reasons":["upstream_output_changed"],"by":["write_fix"]}],"blocked":["search_repository"],"reused":9},"snapshot_override":{"dirty":[{"id":"search_repository","reasons":["patched_input"],"by":[]},{"id":"read_session","reasons":["upstream_output_changed"],"by":["search_repository"]},{"id":"gen_fix","reasons":["upstream_output_changed"],"by":["read_session"]},{"id":"write_fix","reasons":["upstream_output_changed"],"by":["gen_fix"]},{"id":"test_validate","reasons":["upstream_output_changed"],"by":["write_fix"]},{"id":"diff_stat","reasons":["upstream_output_changed"],"by":["write_fix"]}],"blocked":["search_repository"],"reused":9}}},"git_log":{"valid":["tool_output_override","env_var_override","snapshot_override"],"invalid":{"prompt_edit":"error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind ToolCall","model_config_edit":"error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind ToolCall","retrieval_context_override":"error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind ToolCall"},"plans":{"tool_output_override":{"dirty":[{"id":"git_log","reasons":["patched_input"],"by":[]}],"blocked":[],"reused":14},"env_var_override":{"dirty":[{"id":"git_log","reasons":["patched_input"],"by":[]}],"blocked":["git_log"],"reused":14},"snapshot_override":{"dirty":[{"id":"git_log","reasons":["patched_input"],"by":[]}],"blocked":["git_log"],"reused":14}}},"read_session":{"valid":["env_var_override","snapshot_override"],"invalid":{"prompt_edit":"error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind FileRead","model_config_edit":"error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind FileRead","tool_output_override":"error: [\"invalid_patch\"] patch ToolOutputOverride is not valid for span kind FileRead","retrieval_context_override":"error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind FileRead"},"plans":{"env_var_override":{"dirty":[{"id":"read_session","reasons":["patched_input"],"by":[]},{"id":"gen_fix","reasons":["upstream_output_changed"],"by":["read_session"]},{"id":"write_fix","reasons":["upstream_output_changed"],"by":["gen_fix"]},{"id":"test_validate","reasons":["upstream_output_changed"],"by":["write_fix"]},{"id":"diff_stat","reasons":["upstream_output_changed"],"by":["write_fix"]}],"blocked":[],"reused":10},"snapshot_override":{"dirty":[{"id":"read_session","reasons":["patched_input"],"by":[]},{"id":"gen_fix","reasons":["upstream_output_changed"],"by":["read_session"]},{"id":"write_fix","reasons":["upstream_output_changed"],"by":["gen_fix"]},{"id":"test_validate","reasons":["upstream_output_changed"],"by":["write_fix"]},{"id":"diff_stat","reasons":["upstream_output_changed"],"by":["write_fix"]}],"blocked":[],"reused":10}}},"plan_fix":{"valid":["env_var_override","snapshot_override"],"invalid":{"prompt_edit":"error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind PlannerStep","model_config_edit":"error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind PlannerStep","tool_output_override":"error: [\"invalid_patch\"] patch ToolOutputOverride is not valid for span kind PlannerStep","retrieval_context_override":"error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind PlannerStep"},"plans":{"env_var_override":{"dirty":[{"id":"plan_fix","reasons":["patched_input"],"by":[]},{"id":"gen_fix","reasons":["dependency_unknown"],"by":["plan_fix"]},{"id":"write_fix","reasons":["dependency_unknown","upstream_output_changed"],"by":["plan_fix","gen_fix"]},{"id":"test_validate","reasons":["upstream_output_changed"],"by":["write_fix"]},{"id":"diff_stat","reasons":["upstream_output_changed"],"by":["write_fix"]}],"blocked":["plan_fix"],"reused":10},"snapshot_override":{"dirty":[{"id":"plan_fix","reasons":["patched_input"],"by":[]},{"id":"gen_fix","reasons":["dependency_unknown"],"by":["plan_fix"]},{"id":"write_fix","reasons":["dependency_unknown","upstream_output_changed"],"by":["plan_fix","gen_fix"]},{"id":"test_validate","reasons":["upstream_output_changed"],"by":["write_fix"]},{"id":"diff_stat","reasons":["upstream_output_changed"],"by":["write_fix"]}],"blocked":["plan_fix"],"reused":10}}},"gen_fix":{"valid":["prompt_edit","model_config_edit","env_var_override","snapshot_override"],"invalid":{"tool_output_override":"error: [\"invalid_patch\"] patch ToolOutputOverride is not valid for span kind LlmCall","retrieval_context_override":"error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind LlmCall"},"plans":{"prompt_edit":{"dirty":[{"id":"gen_fix","reasons":["patched_input"],"by":[]},{"id":"write_fix","reasons":["upstream_output_changed"],"by":["gen_fix"]},{"id":"test_validate","reasons":["upstream_output_changed"],"by":["write_fix"]},{"id":"diff_stat","reasons":["upstream_output_changed"],"by":["write_fix"]}],"blocked":[],"reused":11},"model_config_edit":{"dirty":[{"id":"gen_fix","reasons":["patched_input"],"by":[]},{"id":"write_fix","reasons":["upstream_output_changed"],"by":["gen_fix"]},{"id":"test_validate","reasons":["upstream_output_changed"],"by":["write_fix"]},{"id":"diff_stat","reasons":["upstream_output_changed"],"by":["write_fix"]}],"blocked":[],"reused":11},"env_var_override":{"dirty":[{"id":"gen_fix","reasons":["patched_input"],"by":[]},{"id":"write_fix","reasons":["upstream_output_changed"],"by":["gen_fix"]},{"id":"test_validate","reasons":["upstream_output_changed"],"by":["write_fix"]},{"id":"diff_stat","reasons":["upstream_output_changed"],"by":["write_fix"]}],"blocked":[],"reused":11},"snapshot_override":{"dirty":[{"id":"gen_fix","reasons":["patched_input"],"by":[]},{"id":"write_fix","reasons":["upstream_output_changed"],"by":["gen_fix"]},{"id":"test_validate","reasons":["upstream_output_changed"],"by":["write_fix"]},{"id":"diff_stat","reasons":["upstream_output_changed"],"by":["write_fix"]}],"blocked":[],"reused":11}}},"write_fix":{"valid":["env_var_override","snapshot_override"],"invalid":{"prompt_edit":"error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind FileWrite","model_config_edit":"error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind FileWrite","tool_output_override":"error: [\"invalid_patch\"] patch ToolOutputOverride is not valid for span kind FileWrite","retrieval_context_override":"error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind FileWrite"},"plans":{"env_var_override":{"dirty":[{"id":"write_fix","reasons":["patched_input"],"by":[]},{"id":"test_validate","reasons":["upstream_output_changed"],"by":["write_fix"]},{"id":"diff_stat","reasons":["upstream_output_changed"],"by":["write_fix"]}],"blocked":[],"reused":12},"snapshot_override":{"dirty":[{"id":"write_fix","reasons":["patched_input"],"by":[]},{"id":"test_validate","reasons":["upstream_output_changed"],"by":["write_fix"]},{"id":"diff_stat","reasons":["upstream_output_changed"],"by":["write_fix"]}],"blocked":[],"reused":12}}},"plan_validate":{"valid":["env_var_override","snapshot_override"],"invalid":{"prompt_edit":"error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind PlannerStep","model_config_edit":"error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind PlannerStep","tool_output_override":"error: [\"invalid_patch\"] patch ToolOutputOverride is not valid for span kind PlannerStep","retrieval_context_override":"error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind PlannerStep"},"plans":{"env_var_override":{"dirty":[{"id":"plan_validate","reasons":["patched_input"],"by":[]},{"id":"test_validate","reasons":["dependency_unknown"],"by":["plan_validate"]},{"id":"diff_stat","reasons":["dependency_unknown"],"by":["plan_validate"]}],"blocked":["plan_validate"],"reused":12},"snapshot_override":{"dirty":[{"id":"plan_validate","reasons":["patched_input"],"by":[]},{"id":"test_validate","reasons":["dependency_unknown"],"by":["plan_validate"]},{"id":"diff_stat","reasons":["dependency_unknown"],"by":["plan_validate"]}],"blocked":["plan_validate"],"reused":12}}},"test_validate":{"valid":["env_var_override","snapshot_override"],"invalid":{"prompt_edit":"error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind ShellCommand","model_config_edit":"error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind ShellCommand","tool_output_override":"error: [\"invalid_patch\"] patch ToolOutputOverride is not valid for span kind ShellCommand","retrieval_context_override":"error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind ShellCommand"},"plans":{"env_var_override":{"dirty":[{"id":"test_validate","reasons":["patched_input"],"by":[]}],"blocked":[],"reused":14},"snapshot_override":{"dirty":[{"id":"test_validate","reasons":["patched_input"],"by":[]}],"blocked":[],"reused":14}}},"diff_stat":{"valid":["env_var_override","snapshot_override"],"invalid":{"prompt_edit":"error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind ShellCommand","model_config_edit":"error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind ShellCommand","tool_output_override":"error: [\"invalid_patch\"] patch ToolOutputOverride is not valid for span kind ShellCommand","retrieval_context_override":"error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind ShellCommand"},"plans":{"env_var_override":{"dirty":[{"id":"diff_stat","reasons":["patched_input"],"by":[]}],"blocked":[],"reused":14},"snapshot_override":{"dirty":[{"id":"diff_stat","reasons":["patched_input"],"by":[]}],"blocked":[],"reused":14}}}},"forks":[{"id":"prompt","fork":"gen_fix","patch":"prompt_edit","title":"edit the fix prompt","field":"prompt of Generate fix","before":"Return the full corrected file.","after":"Return the full corrected file. Also catch TimeoutError in handle_login and raise AuthTimeout.","branch":{"run_id":"run-0000000000000002","status":"Blocked","job":"Blocked"},"steps":[{"id":"gen_fix","status":"Blocked","error":"replay blocked: LlmCall to model 'scripted-fixer' requires an explicit model executor; use FakeModelExecutor for tests or PassthroughModelExecutor for live calls","out":[],"out_fp":""},{"id":"write_fix","status":"Blocked","error":"replay blocked: upstream span gen_fix did not complete","out":[],"out_fp":"9722af8831e9"},{"id":"test_validate","status":"Blocked","error":"replay blocked: upstream span write_fix did not complete","out":[],"out_fp":"4fa6afe498dd"},{"id":"diff_stat","status":"Blocked","error":"replay blocked: upstream span write_fix did not complete","out":[],"out_fp":"beece6915e13"}],"statuses":{"root":"Failed","plan_repro":"Completed","read_issue":"Completed","select_tests":"Completed","test_repro":"Failed","plan_search":"Completed","search_repository":"Completed","git_log":"Completed","read_session":"Completed","plan_fix":"Completed","gen_fix":"Blocked","write_fix":"Blocked","plan_validate":"Failed","test_validate":"Blocked","diff_stat":"Blocked"},"diff":{"source_status":"Failed","target_status":"Blocked","changed_spans":4,"changed_artifacts":1,"first_divergent":"gen_fix","spans":[{"span_id_source":"gen_fix","name":"Generate fix","status_change":"Completed -> Blocked","output_changed":true,"dirty_reason":"fingerprint_changed"},{"span_id_source":"write_fix","name":"write auth/session.py","status_change":"Completed -> Blocked","output_changed":false,"dirty_reason":"status_changed"},{"span_id_source":"test_validate","name":"run tests","status_change":"Failed -> Blocked","output_changed":false,"dirty_reason":"status_changed"},{"span_id_source":"diff_stat","name":"git diff --stat","status_change":"Completed -> Blocked","output_changed":false,"dirty_reason":"status_changed"}]}},{"id":"tool","fork":"select_tests","patch":"tool_output_override","title":"override a tool output","field":"output of select_tests","before":"tests/test_login.py  tests/test_session.py","after":"tests/test_session.py","branch":{"run_id":"run-0000000000000003","status":"Failed","job":"Failed"},"steps":[{"id":"select_tests","status":"Completed","error":null,"out":[{"id":"artifact-000000000000000e","type":"patch_manifest","text":"tests/test_session.py"}],"out_fp":"patched:Tool"},{"id":"test_repro","status":"Failed","error":"command exited with code 1: FAILED test_login_timeout: RuntimeError: deadlock: acquire() blocked forever on an empty pool\n","out":[{"id":"artifact-000000000000000f","type":"shell_stdout","text":"tests/test_login.py::test_invalid_credentials ... ok\ntests/test_login.py::test_login_basic ... ok\ntests/test_login.py::test_login_timeout ... FAILED\ntests/test_login.py::test_validate_credentials ... ok\ntests/test_session.py::test_init_session ... ok\ntests/test_session.py::test_session_timeout ... ok\nresult: FAILED. 5 passed; 1 failed"},{"id":"artifact-0000000000000010","type":"shell_stderr","text":"FAILED test_login_timeout: RuntimeError: deadlock: acquire() blocked forever on an empty pool"}],"out_fp":"4fa6afe498dd"},{"id":"test_validate","status":"Failed","error":"command exited with code 1: FAILED test_login_timeout: RuntimeError: deadlock: acquire() blocked forever on an empty pool\n","out":[{"id":"artifact-0000000000000011","type":"shell_stdout","text":"tests/test_login.py::test_invalid_credentials ... ok\ntests/test_login.py::test_login_basic ... ok\ntests/test_login.py::test_login_timeout ... FAILED\ntests/test_login.py::test_validate_credentials ... ok\ntests/test_session.py::test_init_session ... ok\ntests/test_session.py::test_session_timeout ... ok\nresult: FAILED. 5 passed; 1 failed"},{"id":"artifact-0000000000000012","type":"shell_stderr","text":"FAILED test_login_timeout: RuntimeError: deadlock: acquire() blocked forever on an empty pool"}],"out_fp":"4fa6afe498dd"}],"statuses":{"root":"Failed","plan_repro":"Completed","read_issue":"Completed","select_tests":"Completed","test_repro":"Failed","plan_search":"Completed","search_repository":"Completed","git_log":"Completed","read_session":"Completed","plan_fix":"Completed","gen_fix":"Completed","write_fix":"Completed","plan_validate":"Failed","test_validate":"Failed","diff_stat":"Completed"},"diff":{"source_status":"Failed","target_status":"Failed","changed_spans":2,"changed_artifacts":5,"first_divergent":"select_tests","spans":[{"span_id_source":"select_tests","name":"select_tests","status_change":null,"output_changed":true,"dirty_reason":"upstream_output_changed"},{"span_id_source":"test_repro","name":"run tests","status_change":null,"output_changed":true,"dirty_reason":"upstream_output_changed"}]}},{"id":"unread","fork":"git_log","patch":"tool_output_override","title":"override an unread output","field":"output of git_log","before":"5ecaa27 issue: login hangs on an exhausted pool","after":"9f2c1e0 hotfix: pool timeout (patched)","branch":{"run_id":"run-0000000000000004","status":"Failed","job":"Failed"},"steps":[{"id":"git_log","status":"Completed","error":null,"out":[{"id":"artifact-0000000000000013","type":"patch_manifest","text":"9f2c1e0 hotfix: pool timeout (patched)\n00e0174 tests: login and session timeouts\n71ed2c8 auth service: pool, session, login"}],"out_fp":"patched:Tool"}],"statuses":{"root":"Failed","plan_repro":"Completed","read_issue":"Completed","select_tests":"Completed","test_repro":"Failed","plan_search":"Completed","search_repository":"Completed","git_log":"Completed","read_session":"Completed","plan_fix":"Completed","gen_fix":"Completed","write_fix":"Completed","plan_validate":"Failed","test_validate":"Failed","diff_stat":"Completed"},"diff":{"source_status":"Failed","target_status":"Failed","changed_spans":1,"changed_artifacts":1,"first_divergent":"git_log","spans":[{"span_id_source":"git_log","name":"git_log","status_change":null,"output_changed":true,"dirty_reason":"upstream_output_changed"}]}},{"id":"planner","fork":"plan_search","patch":"env_var_override","title":"patch a planner step","field":"env of Search codebase","before":"(no SEARCH_ROOT set)","after":"SEARCH_ROOT=auth/","branch":{"run_id":"run-0000000000000005","status":"Blocked","job":"Blocked"},"steps":[{"id":"plan_search","status":"Blocked","error":"replay blocked: no executor for span kind PlannerStep","out":[],"out_fp":""},{"id":"search_repository","status":"Blocked","error":"replay blocked: upstream span plan_search did not complete","out":[],"out_fp":"614536ea3a2c"},{"id":"git_log","status":"Blocked","error":"replay blocked: upstream span plan_search did not complete","out":[],"out_fp":"fb8f8508125b"},{"id":"read_session","status":"Blocked","error":"replay blocked: upstream span plan_search did not complete","out":[],"out_fp":"e648ec42e3cf"},{"id":"gen_fix","status":"Blocked","error":"replay blocked: upstream span read_session did not complete","out":[],"out_fp":"c973aaf88db9"},{"id":"write_fix","status":"Blocked","error":"replay blocked: upstream span gen_fix did not complete","out":[],"out_fp":"9722af8831e9"},{"id":"test_validate","status":"Blocked","error":"replay blocked: upstream span write_fix did not complete","out":[],"out_fp":"4fa6afe498dd"},{"id":"diff_stat","status":"Blocked","error":"replay blocked: upstream span write_fix did not complete","out":[],"out_fp":"beece6915e13"}],"statuses":{"root":"Failed","plan_repro":"Completed","read_issue":"Completed","select_tests":"Completed","test_repro":"Failed","plan_search":"Blocked","search_repository":"Blocked","git_log":"Blocked","read_session":"Blocked","plan_fix":"Completed","gen_fix":"Blocked","write_fix":"Blocked","plan_validate":"Failed","test_validate":"Blocked","diff_stat":"Blocked"},"diff":{"source_status":"Failed","target_status":"Blocked","changed_spans":8,"changed_artifacts":1,"first_divergent":"plan_search","spans":[{"span_id_source":"plan_search","name":"Search codebase","status_change":"Completed -> Blocked","output_changed":false,"dirty_reason":"fingerprint_changed"},{"span_id_source":"search_repository","name":"search_repository","status_change":"Completed -> Blocked","output_changed":false,"dirty_reason":"status_changed"},{"span_id_source":"git_log","name":"git_log","status_change":"Completed -> Blocked","output_changed":false,"dirty_reason":"status_changed"},{"span_id_source":"read_session","name":"read auth/session.py","status_change":"Completed -> Blocked","output_changed":false,"dirty_reason":"status_changed"},{"span_id_source":"gen_fix","name":"Generate fix","status_change":"Completed -> Blocked","output_changed":false,"dirty_reason":"status_changed"},{"span_id_source":"write_fix","name":"write auth/session.py","status_change":"Completed -> Blocked","output_changed":false,"dirty_reason":"status_changed"},{"span_id_source":"test_validate","name":"run tests","status_change":"Failed -> Blocked","output_changed":false,"dirty_reason":"status_changed"},{"span_id_source":"diff_stat","name":"git diff --stat","status_change":"Completed -> Blocked","output_changed":false,"dirty_reason":"status_changed"}]}}]}
+{
+ "meta": {
+  "replaykit_commit": "d6d655f",
+  "recorded_with": "examples/scripted-agent/agent.py -> replaykit-collector (POST /v1/runs with workspace_root, /spans, /artifacts, /edges)",
+  "forked_with": "replaykit replay plan / replay fork (sqlite store, CompositeExecutorRegistry, hermetic sandbox; prompt fork: --model-mode command --model-command 'python3 fixer.py')",
+  "read_with": "replaykit serve (GET /api/v1/...) and replaykit runs workspace-diff",
+  "paths": "relative to the throwaway workspace repo"
+ },
+ "run": {
+  "run_id": "run-0000000000000001",
+  "title": "Fix login timeout bug",
+  "status": "Failed",
+  "duration_ms": 785,
+  "adapter": "replaykit-collector-http",
+  "snapshots": 30
+ },
+ "spans": [
+  {
+   "id": "root",
+   "parent": null,
+   "seq": 1,
+   "kind": "Run",
+   "name": "Fix login timeout bug",
+   "status": "Failed",
+   "t0": 0,
+   "t1": 785,
+   "policy": "record_only",
+   "executor": null,
+   "error": "validation failed: 1 test still failing",
+   "attrs": {},
+   "out": [],
+   "out_fp": ""
+  },
+  {
+   "id": "plan_repro",
+   "parent": "root",
+   "seq": 2,
+   "kind": "PlannerStep",
+   "name": "Reproduce failure",
+   "status": "Completed",
+   "t0": 32,
+   "t1": 243,
+   "policy": "record_only",
+   "executor": null,
+   "error": null,
+   "attrs": {},
+   "out": [],
+   "out_fp": ""
+  },
+  {
+   "id": "read_issue",
+   "parent": "plan_repro",
+   "seq": 3,
+   "kind": "FileRead",
+   "name": "read ISSUE.md",
+   "status": "Completed",
+   "t0": 58,
+   "t1": 82,
+   "policy": "pure_reusable",
+   "executor": "fs.read",
+   "error": null,
+   "attrs": {
+    "path": "ISSUE.md"
+   },
+   "out": [
+    {
+     "id": "artifact-0000000000000004",
+     "type": "file_blob",
+     "text": "# Login hangs when the pool is exhausted\n\nSince the session refactor, `handle_login` never returns when every connection is taken.\nExpected: give up after a timeout and raise AuthTimeout."
+    }
+   ],
+   "out_fp": "a34d6d5106c6"
+  },
+  {
+   "id": "select_tests",
+   "parent": "plan_repro",
+   "seq": 4,
+   "kind": "ToolCall",
+   "name": "select_tests",
+   "status": "Completed",
+   "t0": 105,
+   "t1": 147,
+   "policy": "rerunnable_supported",
+   "executor": "tool.select_tests",
+   "error": null,
+   "attrs": {
+    "command": "git ls-files tests",
+    "cwd": "."
+   },
+   "out": [
+    {
+     "id": "artifact-0000000000000007",
+     "type": "tool_output",
+     "text": "tests/test_login.py\ntests/test_session.py"
+    }
+   ],
+   "out_fp": "30ebe06e5ad3"
+  },
+  {
+   "id": "test_repro",
+   "parent": "plan_repro",
+   "seq": 5,
+   "kind": "ShellCommand",
+   "name": "run tests",
+   "status": "Failed",
+   "t0": 161,
+   "t1": 226,
+   "policy": "rerunnable_supported",
+   "executor": "shell",
+   "error": "command exited with code 1: FAILED test_login_timeout: RuntimeError: deadlock: acquire() blocked forever on an empty pool\nFAILED test_session_timeout: TypeError: init_session() got an unexpected keyword argument 'timeout'",
+   "attrs": {
+    "command": "python3 run_tests.py tests/test_login.py tests/test_session.py",
+    "cwd": ".",
+    "bind": "command ← python3 run_tests.py {{select_tests|words}}"
+   },
+   "out": [
+    {
+     "id": "artifact-000000000000000a",
+     "type": "shell_stdout",
+     "text": "tests/test_login.py::test_invalid_credentials ... ok\ntests/test_login.py::test_login_basic ... ok\ntests/test_login.py::test_login_timeout ... FAILED\ntests/test_login.py::test_validate_credentials ... ok\ntests/test_session.py::test_init_session ... ok\ntests/test_session.py::test_session_timeout ... FAILED\nresult: FAILED. 4 passed; 2 failed"
+    },
+    {
+     "id": "artifact-000000000000000b",
+     "type": "shell_stderr",
+     "text": "FAILED test_login_timeout: RuntimeError: deadlock: acquire() blocked forever on an empty pool\nFAILED test_session_timeout: TypeError: init_session() got an unexpected keyword argument 'timeout'"
+    }
+   ],
+   "out_fp": "14be30e192c9"
+  },
+  {
+   "id": "plan_search",
+   "parent": "root",
+   "seq": 6,
+   "kind": "PlannerStep",
+   "name": "Search codebase",
+   "status": "Completed",
+   "t0": 255,
+   "t1": 405,
+   "policy": "record_only",
+   "executor": null,
+   "error": null,
+   "attrs": {},
+   "out": [],
+   "out_fp": ""
+  },
+  {
+   "id": "search_repository",
+   "parent": "plan_search",
+   "seq": 7,
+   "kind": "ToolCall",
+   "name": "search_repository",
+   "status": "Completed",
+   "t0": 269,
+   "t1": 299,
+   "policy": "rerunnable_supported",
+   "executor": "tool.search_repository",
+   "error": null,
+   "attrs": {
+    "command": "grep -rn 'acquire(' auth",
+    "cwd": "."
+   },
+   "out": [
+    {
+     "id": "artifact-0000000000000010",
+     "type": "tool_output",
+     "text": "auth/session.py:2:    conn = pool.acquire()\nauth/pool.py:2:    \"\"\"A connection pool. acquire() with no timeout on an empty pool would block forever.\"\"\"\nauth/pool.py:7:    def acquire(self, timeout=None):\nauth/pool.py:11:            raise RuntimeError(\"deadlock: acquire() blocked forever on an empty pool\")"
+    }
+   ],
+   "out_fp": "ab62ad6b1656"
+  },
+  {
+   "id": "git_log",
+   "parent": "plan_search",
+   "seq": 8,
+   "kind": "ToolCall",
+   "name": "git_log",
+   "status": "Completed",
+   "t0": 311,
+   "t1": 351,
+   "policy": "rerunnable_supported",
+   "executor": "tool.git_log",
+   "error": null,
+   "attrs": {
+    "command": "git log --oneline -3",
+    "cwd": "."
+   },
+   "out": [
+    {
+     "id": "artifact-0000000000000013",
+     "type": "tool_output",
+     "text": "d29883b issue: login hangs on an exhausted pool\nf84ec9c tests: login and session timeouts\ne75464f auth service: pool, session, login"
+    }
+   ],
+   "out_fp": "b991f0a8404a"
+  },
+  {
+   "id": "read_session",
+   "parent": "plan_search",
+   "seq": 9,
+   "kind": "FileRead",
+   "name": "read auth/session.py",
+   "status": "Completed",
+   "t0": 362,
+   "t1": 388,
+   "policy": "pure_reusable",
+   "executor": "fs.read",
+   "error": null,
+   "attrs": {
+    "path": "auth/session.py"
+   },
+   "out": [
+    {
+     "id": "artifact-0000000000000016",
+     "type": "file_blob",
+     "text": "def init_session(pool):\n    conn = pool.acquire()\n    return {\"conn\": conn}"
+    }
+   ],
+   "out_fp": "e648ec42e3cf"
+  },
+  {
+   "id": "plan_fix",
+   "parent": "root",
+   "seq": 10,
+   "kind": "PlannerStep",
+   "name": "Implement fix",
+   "status": "Completed",
+   "t0": 420,
+   "t1": 599,
+   "policy": "record_only",
+   "executor": null,
+   "error": null,
+   "attrs": {},
+   "out": [],
+   "out_fp": ""
+  },
+  {
+   "id": "gen_fix",
+   "parent": "plan_fix",
+   "seq": 11,
+   "kind": "LlmCall",
+   "name": "Generate fix",
+   "status": "Completed",
+   "t0": 439,
+   "t1": 515,
+   "policy": "rerunnable_supported",
+   "executor": "local.scripted-fixer",
+   "error": null,
+   "attrs": {
+    "model": "scripted-fixer",
+    "provider": "local",
+    "bind": "prompt ← You are fixing a bug in a Python repository.⏎⏎ISSUE.md:⏎{{read_issue}}⏎auth/session.py:⏎{{read_session}}⏎Return the full corrected file.",
+    "prompt": "Return the full corrected file."
+   },
+   "out": [
+    {
+     "id": "artifact-000000000000001b",
+     "type": "model_response",
+     "text": "import os\n\n# Seconds to wait for a pooled connection; unset means wait forever.\nDEFAULT_TIMEOUT = float(os.environ.get(\"AUTH_POOL_TIMEOUT\", \"0\")) or None\n\n\ndef init_session(pool, timeout=None):\n    if timeout is None:\n        timeout = DEFAULT_TIMEOUT\n    conn = pool.acquire(timeout=timeout)\n    return {\"conn\": conn}"
+    }
+   ],
+   "out_fp": "f26638408f0c"
+  },
+  {
+   "id": "write_fix",
+   "parent": "plan_fix",
+   "seq": 12,
+   "kind": "FileWrite",
+   "name": "write auth/session.py",
+   "status": "Completed",
+   "t0": 536,
+   "t1": 575,
+   "policy": "rerunnable_supported",
+   "executor": "fs.write",
+   "error": null,
+   "attrs": {
+    "path": "auth/session.py",
+    "bind": "content ← {{gen_fix}}"
+   },
+   "out": [
+    {
+     "id": "artifact-000000000000001e",
+     "type": "file_diff",
+     "text": "diff --git a/auth/session.py b/auth/session.py\nindex 9738a3c..116995b 100644\n--- a/auth/session.py\n+++ b/auth/session.py\n@@ -1,3 +1,11 @@\n-def init_session(pool):\n-    conn = pool.acquire()\n+import os\n+\n+# Seconds to wait for a pooled connection; unset means wait forever.\n+DEFAULT_TIMEOUT = float(os.environ.get(\"AUTH_POOL_TIMEOUT\", \"0\")) or None\n+\n+\n+def init_session(pool, timeout=None):\n+    if timeout is None:\n+        timeout = DEFAULT_TIMEOUT\n+    conn = pool.acquire(timeout=timeout)\n     return {\"conn\": conn}"
+    }
+   ],
+   "out_fp": "f26638408f0c"
+  },
+  {
+   "id": "plan_validate",
+   "parent": "root",
+   "seq": 13,
+   "kind": "PlannerStep",
+   "name": "Validate fix",
+   "status": "Failed",
+   "t0": 610,
+   "t1": 773,
+   "policy": "record_only",
+   "executor": null,
+   "error": "tests still failing after the fix",
+   "attrs": {},
+   "out": [],
+   "out_fp": ""
+  },
+  {
+   "id": "test_validate",
+   "parent": "plan_validate",
+   "seq": 14,
+   "kind": "ShellCommand",
+   "name": "run tests",
+   "status": "Failed",
+   "t0": 627,
+   "t1": 685,
+   "policy": "rerunnable_supported",
+   "executor": "shell",
+   "error": "command exited with code 1: FAILED test_login_timeout: RuntimeError: deadlock: acquire() blocked forever on an empty pool",
+   "attrs": {
+    "command": "python3 run_tests.py tests/test_login.py tests/test_session.py",
+    "cwd": ".",
+    "bind": "command ← python3 run_tests.py {{select_tests|words}}"
+   },
+   "out": [
+    {
+     "id": "artifact-0000000000000023",
+     "type": "shell_stdout",
+     "text": "tests/test_login.py::test_invalid_credentials ... ok\ntests/test_login.py::test_login_basic ... ok\ntests/test_login.py::test_login_timeout ... FAILED\ntests/test_login.py::test_validate_credentials ... ok\ntests/test_session.py::test_init_session ... ok\ntests/test_session.py::test_session_timeout ... ok\nresult: FAILED. 5 passed; 1 failed"
+    },
+    {
+     "id": "artifact-0000000000000024",
+     "type": "shell_stderr",
+     "text": "FAILED test_login_timeout: RuntimeError: deadlock: acquire() blocked forever on an empty pool"
+    }
+   ],
+   "out_fp": "4fa6afe498dd"
+  },
+  {
+   "id": "diff_stat",
+   "parent": "plan_validate",
+   "seq": 15,
+   "kind": "ShellCommand",
+   "name": "git diff --stat",
+   "status": "Completed",
+   "t0": 709,
+   "t1": 751,
+   "policy": "rerunnable_supported",
+   "executor": "shell",
+   "error": null,
+   "attrs": {
+    "command": "git diff --stat",
+    "cwd": "."
+   },
+   "out": [
+    {
+     "id": "artifact-0000000000000027",
+     "type": "shell_stdout",
+     "text": " auth/session.py | 12 ++++++++++--\n 1 file changed, 10 insertions(+), 2 deletions(-)"
+    }
+   ],
+   "out_fp": "c78907edd0eb"
+  }
+ ],
+ "edges": [
+  {
+   "from": "select_tests",
+   "to": "read_issue",
+   "kind": "DataDependsOn"
+  },
+  {
+   "from": "test_repro",
+   "to": "select_tests",
+   "kind": "DataDependsOn"
+  },
+  {
+   "from": "read_session",
+   "to": "search_repository",
+   "kind": "DataDependsOn"
+  },
+  {
+   "from": "gen_fix",
+   "to": "read_issue",
+   "kind": "DataDependsOn"
+  },
+  {
+   "from": "gen_fix",
+   "to": "read_session",
+   "kind": "DataDependsOn"
+  },
+  {
+   "from": "write_fix",
+   "to": "gen_fix",
+   "kind": "DataDependsOn"
+  },
+  {
+   "from": "test_validate",
+   "to": "select_tests",
+   "kind": "DataDependsOn"
+  },
+  {
+   "from": "test_validate",
+   "to": "write_fix",
+   "kind": "DataDependsOn"
+  },
+  {
+   "from": "diff_stat",
+   "to": "write_fix",
+   "kind": "DataDependsOn"
+  }
+ ],
+ "plans": {
+  "root": {
+   "valid": [
+    "env_var_override",
+    "snapshot_override"
+   ],
+   "invalid": {
+    "prompt_edit": "error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind Run",
+    "model_config_edit": "error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind Run",
+    "tool_output_override": "error: [\"invalid_patch\"] patch ToolOutputOverride is not valid for span kind Run",
+    "command_override": "error: [\"invalid_patch\"] patch CommandOverride is not valid for span kind Run",
+    "file_content_override": "error: [\"invalid_patch\"] patch FileContentOverride is not valid for span kind Run",
+    "retrieval_context_override": "error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind Run"
+   },
+   "plans": {
+    "env_var_override": {
+     "dirty": [
+      {
+       "id": "root",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "plan_repro",
+       "reasons": [
+        "dependency_unknown"
+       ],
+       "by": [
+        "root"
+       ]
+      },
+      {
+       "id": "read_issue",
+       "reasons": [
+        "dependency_unknown"
+       ],
+       "by": [
+        "plan_repro"
+       ]
+      },
+      {
+       "id": "select_tests",
+       "reasons": [
+        "dependency_unknown",
+        "upstream_output_changed"
+       ],
+       "by": [
+        "plan_repro",
+        "read_issue"
+       ]
+      },
+      {
+       "id": "test_repro",
+       "reasons": [
+        "dependency_unknown",
+        "upstream_output_changed"
+       ],
+       "by": [
+        "plan_repro",
+        "select_tests"
+       ]
+      },
+      {
+       "id": "plan_search",
+       "reasons": [
+        "dependency_unknown"
+       ],
+       "by": [
+        "root"
+       ]
+      },
+      {
+       "id": "search_repository",
+       "reasons": [
+        "dependency_unknown"
+       ],
+       "by": [
+        "plan_search"
+       ]
+      },
+      {
+       "id": "git_log",
+       "reasons": [
+        "dependency_unknown"
+       ],
+       "by": [
+        "plan_search"
+       ]
+      },
+      {
+       "id": "read_session",
+       "reasons": [
+        "dependency_unknown",
+        "upstream_output_changed"
+       ],
+       "by": [
+        "plan_search",
+        "search_repository"
+       ]
+      },
+      {
+       "id": "plan_fix",
+       "reasons": [
+        "dependency_unknown"
+       ],
+       "by": [
+        "root"
+       ]
+      },
+      {
+       "id": "gen_fix",
+       "reasons": [
+        "dependency_unknown",
+        "upstream_output_changed"
+       ],
+       "by": [
+        "plan_fix",
+        "read_issue",
+        "read_session"
+       ]
+      },
+      {
+       "id": "write_fix",
+       "reasons": [
+        "dependency_unknown",
+        "upstream_output_changed"
+       ],
+       "by": [
+        "plan_fix",
+        "gen_fix"
+       ]
+      },
+      {
+       "id": "plan_validate",
+       "reasons": [
+        "dependency_unknown"
+       ],
+       "by": [
+        "root"
+       ]
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "dependency_unknown",
+        "upstream_output_changed"
+       ],
+       "by": [
+        "plan_validate",
+        "select_tests",
+        "write_fix"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "dependency_unknown",
+        "upstream_output_changed"
+       ],
+       "by": [
+        "plan_validate",
+        "write_fix"
+       ]
+      }
+     ],
+     "blocked": [
+      {
+       "id": "root",
+       "reason": "child span plan_fix is blocked"
+      },
+      {
+       "id": "plan_fix",
+       "reason": "child span gen_fix is blocked"
+      },
+      {
+       "id": "gen_fix",
+       "reason": "LlmCall to model 'scripted-fixer' requires an explicit model executor (model mode is 'blocked'); use model mode 'recorded' with a response fixture or 'command' with a provider command"
+      },
+      {
+       "id": "write_fix",
+       "reason": "upstream span gen_fix did not complete: it is blocked"
+      },
+      {
+       "id": "plan_validate",
+       "reason": "child span test_validate is blocked"
+      },
+      {
+       "id": "test_validate",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      },
+      {
+       "id": "diff_stat",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      }
+     ],
+     "reused": 0,
+     "rollup": [],
+     "warnings": [
+      "gen_fix: its prompt is re-rendered from the replayed output of read_issue; a recorded-response model executor can only serve it if that output is unchanged",
+      "gen_fix: its prompt is re-rendered from the replayed output of read_session; a recorded-response model executor can only serve it if that output is unchanged"
+     ]
+    },
+    "snapshot_override": {
+     "dirty": [
+      {
+       "id": "root",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "plan_repro",
+       "reasons": [
+        "dependency_unknown"
+       ],
+       "by": [
+        "root"
+       ]
+      },
+      {
+       "id": "read_issue",
+       "reasons": [
+        "dependency_unknown"
+       ],
+       "by": [
+        "plan_repro"
+       ]
+      },
+      {
+       "id": "select_tests",
+       "reasons": [
+        "dependency_unknown",
+        "upstream_output_changed"
+       ],
+       "by": [
+        "plan_repro",
+        "read_issue"
+       ]
+      },
+      {
+       "id": "test_repro",
+       "reasons": [
+        "dependency_unknown",
+        "upstream_output_changed"
+       ],
+       "by": [
+        "plan_repro",
+        "select_tests"
+       ]
+      },
+      {
+       "id": "plan_search",
+       "reasons": [
+        "dependency_unknown"
+       ],
+       "by": [
+        "root"
+       ]
+      },
+      {
+       "id": "search_repository",
+       "reasons": [
+        "dependency_unknown"
+       ],
+       "by": [
+        "plan_search"
+       ]
+      },
+      {
+       "id": "git_log",
+       "reasons": [
+        "dependency_unknown"
+       ],
+       "by": [
+        "plan_search"
+       ]
+      },
+      {
+       "id": "read_session",
+       "reasons": [
+        "dependency_unknown",
+        "upstream_output_changed"
+       ],
+       "by": [
+        "plan_search",
+        "search_repository"
+       ]
+      },
+      {
+       "id": "plan_fix",
+       "reasons": [
+        "dependency_unknown"
+       ],
+       "by": [
+        "root"
+       ]
+      },
+      {
+       "id": "gen_fix",
+       "reasons": [
+        "dependency_unknown",
+        "upstream_output_changed"
+       ],
+       "by": [
+        "plan_fix",
+        "read_issue",
+        "read_session"
+       ]
+      },
+      {
+       "id": "write_fix",
+       "reasons": [
+        "dependency_unknown",
+        "upstream_output_changed"
+       ],
+       "by": [
+        "plan_fix",
+        "gen_fix"
+       ]
+      },
+      {
+       "id": "plan_validate",
+       "reasons": [
+        "dependency_unknown"
+       ],
+       "by": [
+        "root"
+       ]
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "dependency_unknown",
+        "upstream_output_changed"
+       ],
+       "by": [
+        "plan_validate",
+        "select_tests",
+        "write_fix"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "dependency_unknown",
+        "upstream_output_changed"
+       ],
+       "by": [
+        "plan_validate",
+        "write_fix"
+       ]
+      }
+     ],
+     "blocked": [
+      {
+       "id": "root",
+       "reason": "child span plan_fix is blocked"
+      },
+      {
+       "id": "plan_fix",
+       "reason": "child span gen_fix is blocked"
+      },
+      {
+       "id": "gen_fix",
+       "reason": "LlmCall to model 'scripted-fixer' requires an explicit model executor (model mode is 'blocked'); use model mode 'recorded' with a response fixture or 'command' with a provider command"
+      },
+      {
+       "id": "write_fix",
+       "reason": "upstream span gen_fix did not complete: it is blocked"
+      },
+      {
+       "id": "plan_validate",
+       "reason": "child span test_validate is blocked"
+      },
+      {
+       "id": "test_validate",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      },
+      {
+       "id": "diff_stat",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      }
+     ],
+     "reused": 0,
+     "rollup": [],
+     "warnings": [
+      "gen_fix: its prompt is re-rendered from the replayed output of read_issue; a recorded-response model executor can only serve it if that output is unchanged",
+      "gen_fix: its prompt is re-rendered from the replayed output of read_session; a recorded-response model executor can only serve it if that output is unchanged"
+     ]
+    }
+   }
+  },
+  "plan_repro": {
+   "valid": [
+    "env_var_override",
+    "snapshot_override"
+   ],
+   "invalid": {
+    "prompt_edit": "error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind PlannerStep",
+    "model_config_edit": "error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind PlannerStep",
+    "tool_output_override": "error: [\"invalid_patch\"] patch ToolOutputOverride is not valid for span kind PlannerStep",
+    "command_override": "error: [\"invalid_patch\"] patch CommandOverride is not valid for span kind PlannerStep",
+    "file_content_override": "error: [\"invalid_patch\"] patch FileContentOverride is not valid for span kind PlannerStep",
+    "retrieval_context_override": "error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind PlannerStep"
+   },
+   "plans": {
+    "env_var_override": {
+     "dirty": [
+      {
+       "id": "plan_repro",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "read_issue",
+       "reasons": [
+        "dependency_unknown"
+       ],
+       "by": [
+        "plan_repro"
+       ]
+      },
+      {
+       "id": "select_tests",
+       "reasons": [
+        "dependency_unknown",
+        "upstream_output_changed"
+       ],
+       "by": [
+        "plan_repro",
+        "read_issue"
+       ]
+      },
+      {
+       "id": "test_repro",
+       "reasons": [
+        "dependency_unknown",
+        "upstream_output_changed"
+       ],
+       "by": [
+        "plan_repro",
+        "select_tests"
+       ]
+      },
+      {
+       "id": "gen_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "read_issue"
+       ]
+      },
+      {
+       "id": "write_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "gen_fix"
+       ]
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "select_tests",
+        "write_fix"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      }
+     ],
+     "blocked": [
+      {
+       "id": "root",
+       "reason": "child span plan_fix is blocked"
+      },
+      {
+       "id": "plan_fix",
+       "reason": "child span gen_fix is blocked"
+      },
+      {
+       "id": "gen_fix",
+       "reason": "LlmCall to model 'scripted-fixer' requires an explicit model executor (model mode is 'blocked'); use model mode 'recorded' with a response fixture or 'command' with a provider command"
+      },
+      {
+       "id": "write_fix",
+       "reason": "upstream span gen_fix did not complete: it is blocked"
+      },
+      {
+       "id": "plan_validate",
+       "reason": "child span test_validate is blocked"
+      },
+      {
+       "id": "test_validate",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      },
+      {
+       "id": "diff_stat",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      }
+     ],
+     "reused": 4,
+     "rollup": [
+      "root",
+      "plan_fix",
+      "plan_validate"
+     ],
+     "warnings": [
+      "gen_fix: its prompt is re-rendered from the replayed output of read_issue; a recorded-response model executor can only serve it if that output is unchanged"
+     ]
+    },
+    "snapshot_override": {
+     "dirty": [
+      {
+       "id": "plan_repro",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "read_issue",
+       "reasons": [
+        "dependency_unknown"
+       ],
+       "by": [
+        "plan_repro"
+       ]
+      },
+      {
+       "id": "select_tests",
+       "reasons": [
+        "dependency_unknown",
+        "upstream_output_changed"
+       ],
+       "by": [
+        "plan_repro",
+        "read_issue"
+       ]
+      },
+      {
+       "id": "test_repro",
+       "reasons": [
+        "dependency_unknown",
+        "upstream_output_changed"
+       ],
+       "by": [
+        "plan_repro",
+        "select_tests"
+       ]
+      },
+      {
+       "id": "gen_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "read_issue"
+       ]
+      },
+      {
+       "id": "write_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "gen_fix"
+       ]
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "select_tests",
+        "write_fix"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      }
+     ],
+     "blocked": [
+      {
+       "id": "root",
+       "reason": "child span plan_fix is blocked"
+      },
+      {
+       "id": "plan_fix",
+       "reason": "child span gen_fix is blocked"
+      },
+      {
+       "id": "gen_fix",
+       "reason": "LlmCall to model 'scripted-fixer' requires an explicit model executor (model mode is 'blocked'); use model mode 'recorded' with a response fixture or 'command' with a provider command"
+      },
+      {
+       "id": "write_fix",
+       "reason": "upstream span gen_fix did not complete: it is blocked"
+      },
+      {
+       "id": "plan_validate",
+       "reason": "child span test_validate is blocked"
+      },
+      {
+       "id": "test_validate",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      },
+      {
+       "id": "diff_stat",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      }
+     ],
+     "reused": 4,
+     "rollup": [
+      "root",
+      "plan_fix",
+      "plan_validate"
+     ],
+     "warnings": [
+      "gen_fix: its prompt is re-rendered from the replayed output of read_issue; a recorded-response model executor can only serve it if that output is unchanged"
+     ]
+    }
+   }
+  },
+  "read_issue": {
+   "valid": [
+    "env_var_override",
+    "file_content_override",
+    "snapshot_override"
+   ],
+   "invalid": {
+    "prompt_edit": "error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind FileRead",
+    "model_config_edit": "error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind FileRead",
+    "tool_output_override": "error: [\"invalid_patch\"] patch ToolOutputOverride is not valid for span kind FileRead",
+    "command_override": "error: [\"invalid_patch\"] patch CommandOverride is not valid for span kind FileRead",
+    "retrieval_context_override": "error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind FileRead"
+   },
+   "plans": {
+    "env_var_override": {
+     "dirty": [
+      {
+       "id": "read_issue",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "select_tests",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "read_issue"
+       ]
+      },
+      {
+       "id": "test_repro",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "select_tests"
+       ]
+      },
+      {
+       "id": "gen_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "read_issue"
+       ]
+      },
+      {
+       "id": "write_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "gen_fix"
+       ]
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "select_tests",
+        "write_fix"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      }
+     ],
+     "blocked": [
+      {
+       "id": "root",
+       "reason": "child span plan_fix is blocked"
+      },
+      {
+       "id": "plan_fix",
+       "reason": "child span gen_fix is blocked"
+      },
+      {
+       "id": "gen_fix",
+       "reason": "LlmCall to model 'scripted-fixer' requires an explicit model executor (model mode is 'blocked'); use model mode 'recorded' with a response fixture or 'command' with a provider command"
+      },
+      {
+       "id": "write_fix",
+       "reason": "upstream span gen_fix did not complete: it is blocked"
+      },
+      {
+       "id": "plan_validate",
+       "reason": "child span test_validate is blocked"
+      },
+      {
+       "id": "test_validate",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      },
+      {
+       "id": "diff_stat",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      }
+     ],
+     "reused": 4,
+     "rollup": [
+      "root",
+      "plan_repro",
+      "plan_fix",
+      "plan_validate"
+     ],
+     "warnings": [
+      "gen_fix: its prompt is re-rendered from the replayed output of read_issue; a recorded-response model executor can only serve it if that output is unchanged"
+     ]
+    },
+    "file_content_override": {
+     "dirty": [
+      {
+       "id": "read_issue",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "select_tests",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "read_issue"
+       ]
+      },
+      {
+       "id": "test_repro",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "select_tests"
+       ]
+      },
+      {
+       "id": "gen_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "read_issue"
+       ]
+      },
+      {
+       "id": "write_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "gen_fix"
+       ]
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "select_tests",
+        "write_fix"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      }
+     ],
+     "blocked": [
+      {
+       "id": "root",
+       "reason": "child span plan_fix is blocked"
+      },
+      {
+       "id": "plan_fix",
+       "reason": "child span gen_fix is blocked"
+      },
+      {
+       "id": "gen_fix",
+       "reason": "LlmCall to model 'scripted-fixer' requires an explicit model executor (model mode is 'blocked'); use model mode 'recorded' with a response fixture or 'command' with a provider command"
+      },
+      {
+       "id": "write_fix",
+       "reason": "upstream span gen_fix did not complete: it is blocked"
+      },
+      {
+       "id": "plan_validate",
+       "reason": "child span test_validate is blocked"
+      },
+      {
+       "id": "test_validate",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      },
+      {
+       "id": "diff_stat",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      }
+     ],
+     "reused": 4,
+     "rollup": [
+      "root",
+      "plan_repro",
+      "plan_fix",
+      "plan_validate"
+     ],
+     "warnings": [
+      "gen_fix: its prompt is re-rendered from the replayed output of read_issue; a recorded-response model executor can only serve it if that output is unchanged"
+     ]
+    },
+    "snapshot_override": {
+     "dirty": [
+      {
+       "id": "read_issue",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "select_tests",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "read_issue"
+       ]
+      },
+      {
+       "id": "test_repro",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "select_tests"
+       ]
+      },
+      {
+       "id": "gen_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "read_issue"
+       ]
+      },
+      {
+       "id": "write_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "gen_fix"
+       ]
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "select_tests",
+        "write_fix"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      }
+     ],
+     "blocked": [
+      {
+       "id": "root",
+       "reason": "child span plan_fix is blocked"
+      },
+      {
+       "id": "plan_fix",
+       "reason": "child span gen_fix is blocked"
+      },
+      {
+       "id": "gen_fix",
+       "reason": "LlmCall to model 'scripted-fixer' requires an explicit model executor (model mode is 'blocked'); use model mode 'recorded' with a response fixture or 'command' with a provider command"
+      },
+      {
+       "id": "write_fix",
+       "reason": "upstream span gen_fix did not complete: it is blocked"
+      },
+      {
+       "id": "plan_validate",
+       "reason": "child span test_validate is blocked"
+      },
+      {
+       "id": "test_validate",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      },
+      {
+       "id": "diff_stat",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      }
+     ],
+     "reused": 4,
+     "rollup": [
+      "root",
+      "plan_repro",
+      "plan_fix",
+      "plan_validate"
+     ],
+     "warnings": [
+      "gen_fix: its prompt is re-rendered from the replayed output of read_issue; a recorded-response model executor can only serve it if that output is unchanged"
+     ]
+    }
+   }
+  },
+  "select_tests": {
+   "valid": [
+    "tool_output_override",
+    "env_var_override",
+    "command_override",
+    "snapshot_override"
+   ],
+   "invalid": {
+    "prompt_edit": "error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind ToolCall",
+    "model_config_edit": "error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind ToolCall",
+    "file_content_override": "error: [\"invalid_patch\"] patch FileContentOverride is not valid for span kind ToolCall",
+    "retrieval_context_override": "error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind ToolCall"
+   },
+   "plans": {
+    "tool_output_override": {
+     "dirty": [
+      {
+       "id": "select_tests",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "test_repro",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "select_tests"
+       ]
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "select_tests"
+       ]
+      }
+     ],
+     "blocked": [],
+     "reused": 9,
+     "rollup": [
+      "root",
+      "plan_repro",
+      "plan_validate"
+     ],
+     "warnings": []
+    },
+    "env_var_override": {
+     "dirty": [
+      {
+       "id": "select_tests",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "test_repro",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "select_tests"
+       ]
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "select_tests"
+       ]
+      }
+     ],
+     "blocked": [],
+     "reused": 9,
+     "rollup": [
+      "root",
+      "plan_repro",
+      "plan_validate"
+     ],
+     "warnings": []
+    },
+    "command_override": {
+     "dirty": [
+      {
+       "id": "select_tests",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "test_repro",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "select_tests"
+       ]
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "select_tests"
+       ]
+      }
+     ],
+     "blocked": [],
+     "reused": 9,
+     "rollup": [
+      "root",
+      "plan_repro",
+      "plan_validate"
+     ],
+     "warnings": []
+    },
+    "snapshot_override": {
+     "dirty": [
+      {
+       "id": "select_tests",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "test_repro",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "select_tests"
+       ]
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "select_tests"
+       ]
+      }
+     ],
+     "blocked": [],
+     "reused": 9,
+     "rollup": [
+      "root",
+      "plan_repro",
+      "plan_validate"
+     ],
+     "warnings": []
+    }
+   }
+  },
+  "test_repro": {
+   "valid": [
+    "env_var_override",
+    "command_override",
+    "snapshot_override"
+   ],
+   "invalid": {
+    "prompt_edit": "error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind ShellCommand",
+    "model_config_edit": "error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind ShellCommand",
+    "tool_output_override": "error: [\"invalid_patch\"] patch ToolOutputOverride is not valid for span kind ShellCommand",
+    "file_content_override": "error: [\"invalid_patch\"] patch FileContentOverride is not valid for span kind ShellCommand",
+    "retrieval_context_override": "error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind ShellCommand"
+   },
+   "plans": {
+    "env_var_override": {
+     "dirty": [
+      {
+       "id": "test_repro",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      }
+     ],
+     "blocked": [],
+     "reused": 12,
+     "rollup": [
+      "root",
+      "plan_repro"
+     ],
+     "warnings": []
+    },
+    "command_override": {
+     "dirty": [
+      {
+       "id": "test_repro",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      }
+     ],
+     "blocked": [],
+     "reused": 12,
+     "rollup": [
+      "root",
+      "plan_repro"
+     ],
+     "warnings": []
+    },
+    "snapshot_override": {
+     "dirty": [
+      {
+       "id": "test_repro",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      }
+     ],
+     "blocked": [],
+     "reused": 12,
+     "rollup": [
+      "root",
+      "plan_repro"
+     ],
+     "warnings": []
+    }
+   }
+  },
+  "plan_search": {
+   "valid": [
+    "env_var_override",
+    "snapshot_override"
+   ],
+   "invalid": {
+    "prompt_edit": "error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind PlannerStep",
+    "model_config_edit": "error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind PlannerStep",
+    "tool_output_override": "error: [\"invalid_patch\"] patch ToolOutputOverride is not valid for span kind PlannerStep",
+    "command_override": "error: [\"invalid_patch\"] patch CommandOverride is not valid for span kind PlannerStep",
+    "file_content_override": "error: [\"invalid_patch\"] patch FileContentOverride is not valid for span kind PlannerStep",
+    "retrieval_context_override": "error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind PlannerStep"
+   },
+   "plans": {
+    "env_var_override": {
+     "dirty": [
+      {
+       "id": "plan_search",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "search_repository",
+       "reasons": [
+        "dependency_unknown"
+       ],
+       "by": [
+        "plan_search"
+       ]
+      },
+      {
+       "id": "git_log",
+       "reasons": [
+        "dependency_unknown"
+       ],
+       "by": [
+        "plan_search"
+       ]
+      },
+      {
+       "id": "read_session",
+       "reasons": [
+        "dependency_unknown",
+        "upstream_output_changed"
+       ],
+       "by": [
+        "plan_search",
+        "search_repository"
+       ]
+      },
+      {
+       "id": "gen_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "read_session"
+       ]
+      },
+      {
+       "id": "write_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "gen_fix"
+       ]
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      }
+     ],
+     "blocked": [
+      {
+       "id": "root",
+       "reason": "child span plan_fix is blocked"
+      },
+      {
+       "id": "plan_fix",
+       "reason": "child span gen_fix is blocked"
+      },
+      {
+       "id": "gen_fix",
+       "reason": "LlmCall to model 'scripted-fixer' requires an explicit model executor (model mode is 'blocked'); use model mode 'recorded' with a response fixture or 'command' with a provider command"
+      },
+      {
+       "id": "write_fix",
+       "reason": "upstream span gen_fix did not complete: it is blocked"
+      },
+      {
+       "id": "plan_validate",
+       "reason": "child span test_validate is blocked"
+      },
+      {
+       "id": "test_validate",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      },
+      {
+       "id": "diff_stat",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      }
+     ],
+     "reused": 4,
+     "rollup": [
+      "root",
+      "plan_fix",
+      "plan_validate"
+     ],
+     "warnings": [
+      "gen_fix: its prompt is re-rendered from the replayed output of read_session; a recorded-response model executor can only serve it if that output is unchanged"
+     ]
+    },
+    "snapshot_override": {
+     "dirty": [
+      {
+       "id": "plan_search",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "search_repository",
+       "reasons": [
+        "dependency_unknown"
+       ],
+       "by": [
+        "plan_search"
+       ]
+      },
+      {
+       "id": "git_log",
+       "reasons": [
+        "dependency_unknown"
+       ],
+       "by": [
+        "plan_search"
+       ]
+      },
+      {
+       "id": "read_session",
+       "reasons": [
+        "dependency_unknown",
+        "upstream_output_changed"
+       ],
+       "by": [
+        "plan_search",
+        "search_repository"
+       ]
+      },
+      {
+       "id": "gen_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "read_session"
+       ]
+      },
+      {
+       "id": "write_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "gen_fix"
+       ]
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      }
+     ],
+     "blocked": [
+      {
+       "id": "root",
+       "reason": "child span plan_fix is blocked"
+      },
+      {
+       "id": "plan_fix",
+       "reason": "child span gen_fix is blocked"
+      },
+      {
+       "id": "gen_fix",
+       "reason": "LlmCall to model 'scripted-fixer' requires an explicit model executor (model mode is 'blocked'); use model mode 'recorded' with a response fixture or 'command' with a provider command"
+      },
+      {
+       "id": "write_fix",
+       "reason": "upstream span gen_fix did not complete: it is blocked"
+      },
+      {
+       "id": "plan_validate",
+       "reason": "child span test_validate is blocked"
+      },
+      {
+       "id": "test_validate",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      },
+      {
+       "id": "diff_stat",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      }
+     ],
+     "reused": 4,
+     "rollup": [
+      "root",
+      "plan_fix",
+      "plan_validate"
+     ],
+     "warnings": [
+      "gen_fix: its prompt is re-rendered from the replayed output of read_session; a recorded-response model executor can only serve it if that output is unchanged"
+     ]
+    }
+   }
+  },
+  "search_repository": {
+   "valid": [
+    "tool_output_override",
+    "env_var_override",
+    "command_override",
+    "snapshot_override"
+   ],
+   "invalid": {
+    "prompt_edit": "error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind ToolCall",
+    "model_config_edit": "error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind ToolCall",
+    "file_content_override": "error: [\"invalid_patch\"] patch FileContentOverride is not valid for span kind ToolCall",
+    "retrieval_context_override": "error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind ToolCall"
+   },
+   "plans": {
+    "tool_output_override": {
+     "dirty": [
+      {
+       "id": "search_repository",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "read_session",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "search_repository"
+       ]
+      },
+      {
+       "id": "gen_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "read_session"
+       ]
+      },
+      {
+       "id": "write_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "gen_fix"
+       ]
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      }
+     ],
+     "blocked": [
+      {
+       "id": "root",
+       "reason": "child span plan_fix is blocked"
+      },
+      {
+       "id": "plan_fix",
+       "reason": "child span gen_fix is blocked"
+      },
+      {
+       "id": "gen_fix",
+       "reason": "LlmCall to model 'scripted-fixer' requires an explicit model executor (model mode is 'blocked'); use model mode 'recorded' with a response fixture or 'command' with a provider command"
+      },
+      {
+       "id": "write_fix",
+       "reason": "upstream span gen_fix did not complete: it is blocked"
+      },
+      {
+       "id": "plan_validate",
+       "reason": "child span test_validate is blocked"
+      },
+      {
+       "id": "test_validate",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      },
+      {
+       "id": "diff_stat",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      }
+     ],
+     "reused": 5,
+     "rollup": [
+      "root",
+      "plan_search",
+      "plan_fix",
+      "plan_validate"
+     ],
+     "warnings": [
+      "gen_fix: its prompt is re-rendered from the replayed output of read_session; a recorded-response model executor can only serve it if that output is unchanged"
+     ]
+    },
+    "env_var_override": {
+     "dirty": [
+      {
+       "id": "search_repository",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "read_session",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "search_repository"
+       ]
+      },
+      {
+       "id": "gen_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "read_session"
+       ]
+      },
+      {
+       "id": "write_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "gen_fix"
+       ]
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      }
+     ],
+     "blocked": [
+      {
+       "id": "root",
+       "reason": "child span plan_fix is blocked"
+      },
+      {
+       "id": "plan_fix",
+       "reason": "child span gen_fix is blocked"
+      },
+      {
+       "id": "gen_fix",
+       "reason": "LlmCall to model 'scripted-fixer' requires an explicit model executor (model mode is 'blocked'); use model mode 'recorded' with a response fixture or 'command' with a provider command"
+      },
+      {
+       "id": "write_fix",
+       "reason": "upstream span gen_fix did not complete: it is blocked"
+      },
+      {
+       "id": "plan_validate",
+       "reason": "child span test_validate is blocked"
+      },
+      {
+       "id": "test_validate",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      },
+      {
+       "id": "diff_stat",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      }
+     ],
+     "reused": 5,
+     "rollup": [
+      "root",
+      "plan_search",
+      "plan_fix",
+      "plan_validate"
+     ],
+     "warnings": [
+      "gen_fix: its prompt is re-rendered from the replayed output of read_session; a recorded-response model executor can only serve it if that output is unchanged"
+     ]
+    },
+    "command_override": {
+     "dirty": [
+      {
+       "id": "search_repository",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "read_session",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "search_repository"
+       ]
+      },
+      {
+       "id": "gen_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "read_session"
+       ]
+      },
+      {
+       "id": "write_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "gen_fix"
+       ]
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      }
+     ],
+     "blocked": [
+      {
+       "id": "root",
+       "reason": "child span plan_fix is blocked"
+      },
+      {
+       "id": "plan_fix",
+       "reason": "child span gen_fix is blocked"
+      },
+      {
+       "id": "gen_fix",
+       "reason": "LlmCall to model 'scripted-fixer' requires an explicit model executor (model mode is 'blocked'); use model mode 'recorded' with a response fixture or 'command' with a provider command"
+      },
+      {
+       "id": "write_fix",
+       "reason": "upstream span gen_fix did not complete: it is blocked"
+      },
+      {
+       "id": "plan_validate",
+       "reason": "child span test_validate is blocked"
+      },
+      {
+       "id": "test_validate",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      },
+      {
+       "id": "diff_stat",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      }
+     ],
+     "reused": 5,
+     "rollup": [
+      "root",
+      "plan_search",
+      "plan_fix",
+      "plan_validate"
+     ],
+     "warnings": [
+      "gen_fix: its prompt is re-rendered from the replayed output of read_session; a recorded-response model executor can only serve it if that output is unchanged"
+     ]
+    },
+    "snapshot_override": {
+     "dirty": [
+      {
+       "id": "search_repository",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "read_session",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "search_repository"
+       ]
+      },
+      {
+       "id": "gen_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "read_session"
+       ]
+      },
+      {
+       "id": "write_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "gen_fix"
+       ]
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      }
+     ],
+     "blocked": [
+      {
+       "id": "root",
+       "reason": "child span plan_fix is blocked"
+      },
+      {
+       "id": "plan_fix",
+       "reason": "child span gen_fix is blocked"
+      },
+      {
+       "id": "gen_fix",
+       "reason": "LlmCall to model 'scripted-fixer' requires an explicit model executor (model mode is 'blocked'); use model mode 'recorded' with a response fixture or 'command' with a provider command"
+      },
+      {
+       "id": "write_fix",
+       "reason": "upstream span gen_fix did not complete: it is blocked"
+      },
+      {
+       "id": "plan_validate",
+       "reason": "child span test_validate is blocked"
+      },
+      {
+       "id": "test_validate",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      },
+      {
+       "id": "diff_stat",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      }
+     ],
+     "reused": 5,
+     "rollup": [
+      "root",
+      "plan_search",
+      "plan_fix",
+      "plan_validate"
+     ],
+     "warnings": [
+      "gen_fix: its prompt is re-rendered from the replayed output of read_session; a recorded-response model executor can only serve it if that output is unchanged"
+     ]
+    }
+   }
+  },
+  "git_log": {
+   "valid": [
+    "tool_output_override",
+    "env_var_override",
+    "command_override",
+    "snapshot_override"
+   ],
+   "invalid": {
+    "prompt_edit": "error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind ToolCall",
+    "model_config_edit": "error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind ToolCall",
+    "file_content_override": "error: [\"invalid_patch\"] patch FileContentOverride is not valid for span kind ToolCall",
+    "retrieval_context_override": "error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind ToolCall"
+   },
+   "plans": {
+    "tool_output_override": {
+     "dirty": [
+      {
+       "id": "git_log",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      }
+     ],
+     "blocked": [],
+     "reused": 12,
+     "rollup": [
+      "root",
+      "plan_search"
+     ],
+     "warnings": []
+    },
+    "env_var_override": {
+     "dirty": [
+      {
+       "id": "git_log",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      }
+     ],
+     "blocked": [],
+     "reused": 12,
+     "rollup": [
+      "root",
+      "plan_search"
+     ],
+     "warnings": []
+    },
+    "command_override": {
+     "dirty": [
+      {
+       "id": "git_log",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      }
+     ],
+     "blocked": [],
+     "reused": 12,
+     "rollup": [
+      "root",
+      "plan_search"
+     ],
+     "warnings": []
+    },
+    "snapshot_override": {
+     "dirty": [
+      {
+       "id": "git_log",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      }
+     ],
+     "blocked": [],
+     "reused": 12,
+     "rollup": [
+      "root",
+      "plan_search"
+     ],
+     "warnings": []
+    }
+   }
+  },
+  "read_session": {
+   "valid": [
+    "env_var_override",
+    "file_content_override",
+    "snapshot_override"
+   ],
+   "invalid": {
+    "prompt_edit": "error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind FileRead",
+    "model_config_edit": "error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind FileRead",
+    "tool_output_override": "error: [\"invalid_patch\"] patch ToolOutputOverride is not valid for span kind FileRead",
+    "command_override": "error: [\"invalid_patch\"] patch CommandOverride is not valid for span kind FileRead",
+    "retrieval_context_override": "error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind FileRead"
+   },
+   "plans": {
+    "env_var_override": {
+     "dirty": [
+      {
+       "id": "read_session",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "gen_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "read_session"
+       ]
+      },
+      {
+       "id": "write_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "gen_fix"
+       ]
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      }
+     ],
+     "blocked": [
+      {
+       "id": "root",
+       "reason": "child span plan_fix is blocked"
+      },
+      {
+       "id": "plan_fix",
+       "reason": "child span gen_fix is blocked"
+      },
+      {
+       "id": "gen_fix",
+       "reason": "LlmCall to model 'scripted-fixer' requires an explicit model executor (model mode is 'blocked'); use model mode 'recorded' with a response fixture or 'command' with a provider command"
+      },
+      {
+       "id": "write_fix",
+       "reason": "upstream span gen_fix did not complete: it is blocked"
+      },
+      {
+       "id": "plan_validate",
+       "reason": "child span test_validate is blocked"
+      },
+      {
+       "id": "test_validate",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      },
+      {
+       "id": "diff_stat",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      }
+     ],
+     "reused": 6,
+     "rollup": [
+      "root",
+      "plan_search",
+      "plan_fix",
+      "plan_validate"
+     ],
+     "warnings": [
+      "gen_fix: its prompt is re-rendered from the replayed output of read_session; a recorded-response model executor can only serve it if that output is unchanged"
+     ]
+    },
+    "file_content_override": {
+     "dirty": [
+      {
+       "id": "read_session",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "gen_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "read_session"
+       ]
+      },
+      {
+       "id": "write_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "gen_fix"
+       ]
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      }
+     ],
+     "blocked": [
+      {
+       "id": "root",
+       "reason": "child span plan_fix is blocked"
+      },
+      {
+       "id": "plan_fix",
+       "reason": "child span gen_fix is blocked"
+      },
+      {
+       "id": "gen_fix",
+       "reason": "LlmCall to model 'scripted-fixer' requires an explicit model executor (model mode is 'blocked'); use model mode 'recorded' with a response fixture or 'command' with a provider command"
+      },
+      {
+       "id": "write_fix",
+       "reason": "upstream span gen_fix did not complete: it is blocked"
+      },
+      {
+       "id": "plan_validate",
+       "reason": "child span test_validate is blocked"
+      },
+      {
+       "id": "test_validate",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      },
+      {
+       "id": "diff_stat",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      }
+     ],
+     "reused": 6,
+     "rollup": [
+      "root",
+      "plan_search",
+      "plan_fix",
+      "plan_validate"
+     ],
+     "warnings": [
+      "gen_fix: its prompt is re-rendered from the replayed output of read_session; a recorded-response model executor can only serve it if that output is unchanged"
+     ]
+    },
+    "snapshot_override": {
+     "dirty": [
+      {
+       "id": "read_session",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "gen_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "read_session"
+       ]
+      },
+      {
+       "id": "write_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "gen_fix"
+       ]
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      }
+     ],
+     "blocked": [
+      {
+       "id": "root",
+       "reason": "child span plan_fix is blocked"
+      },
+      {
+       "id": "plan_fix",
+       "reason": "child span gen_fix is blocked"
+      },
+      {
+       "id": "gen_fix",
+       "reason": "LlmCall to model 'scripted-fixer' requires an explicit model executor (model mode is 'blocked'); use model mode 'recorded' with a response fixture or 'command' with a provider command"
+      },
+      {
+       "id": "write_fix",
+       "reason": "upstream span gen_fix did not complete: it is blocked"
+      },
+      {
+       "id": "plan_validate",
+       "reason": "child span test_validate is blocked"
+      },
+      {
+       "id": "test_validate",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      },
+      {
+       "id": "diff_stat",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      }
+     ],
+     "reused": 6,
+     "rollup": [
+      "root",
+      "plan_search",
+      "plan_fix",
+      "plan_validate"
+     ],
+     "warnings": [
+      "gen_fix: its prompt is re-rendered from the replayed output of read_session; a recorded-response model executor can only serve it if that output is unchanged"
+     ]
+    }
+   }
+  },
+  "plan_fix": {
+   "valid": [
+    "env_var_override",
+    "snapshot_override"
+   ],
+   "invalid": {
+    "prompt_edit": "error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind PlannerStep",
+    "model_config_edit": "error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind PlannerStep",
+    "tool_output_override": "error: [\"invalid_patch\"] patch ToolOutputOverride is not valid for span kind PlannerStep",
+    "command_override": "error: [\"invalid_patch\"] patch CommandOverride is not valid for span kind PlannerStep",
+    "file_content_override": "error: [\"invalid_patch\"] patch FileContentOverride is not valid for span kind PlannerStep",
+    "retrieval_context_override": "error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind PlannerStep"
+   },
+   "plans": {
+    "env_var_override": {
+     "dirty": [
+      {
+       "id": "plan_fix",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "gen_fix",
+       "reasons": [
+        "dependency_unknown"
+       ],
+       "by": [
+        "plan_fix"
+       ]
+      },
+      {
+       "id": "write_fix",
+       "reasons": [
+        "dependency_unknown",
+        "upstream_output_changed"
+       ],
+       "by": [
+        "plan_fix",
+        "gen_fix"
+       ]
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      }
+     ],
+     "blocked": [
+      {
+       "id": "root",
+       "reason": "child span plan_fix is blocked"
+      },
+      {
+       "id": "plan_fix",
+       "reason": "child span gen_fix is blocked"
+      },
+      {
+       "id": "gen_fix",
+       "reason": "LlmCall to model 'scripted-fixer' requires an explicit model executor (model mode is 'blocked'); use model mode 'recorded' with a response fixture or 'command' with a provider command"
+      },
+      {
+       "id": "write_fix",
+       "reason": "upstream span gen_fix did not complete: it is blocked"
+      },
+      {
+       "id": "plan_validate",
+       "reason": "child span test_validate is blocked"
+      },
+      {
+       "id": "test_validate",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      },
+      {
+       "id": "diff_stat",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      }
+     ],
+     "reused": 8,
+     "rollup": [
+      "root",
+      "plan_validate"
+     ],
+     "warnings": []
+    },
+    "snapshot_override": {
+     "dirty": [
+      {
+       "id": "plan_fix",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "gen_fix",
+       "reasons": [
+        "dependency_unknown"
+       ],
+       "by": [
+        "plan_fix"
+       ]
+      },
+      {
+       "id": "write_fix",
+       "reasons": [
+        "dependency_unknown",
+        "upstream_output_changed"
+       ],
+       "by": [
+        "plan_fix",
+        "gen_fix"
+       ]
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      }
+     ],
+     "blocked": [
+      {
+       "id": "root",
+       "reason": "child span plan_fix is blocked"
+      },
+      {
+       "id": "plan_fix",
+       "reason": "child span gen_fix is blocked"
+      },
+      {
+       "id": "gen_fix",
+       "reason": "LlmCall to model 'scripted-fixer' requires an explicit model executor (model mode is 'blocked'); use model mode 'recorded' with a response fixture or 'command' with a provider command"
+      },
+      {
+       "id": "write_fix",
+       "reason": "upstream span gen_fix did not complete: it is blocked"
+      },
+      {
+       "id": "plan_validate",
+       "reason": "child span test_validate is blocked"
+      },
+      {
+       "id": "test_validate",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      },
+      {
+       "id": "diff_stat",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      }
+     ],
+     "reused": 8,
+     "rollup": [
+      "root",
+      "plan_validate"
+     ],
+     "warnings": []
+    }
+   }
+  },
+  "gen_fix": {
+   "valid": [
+    "prompt_edit",
+    "model_config_edit",
+    "env_var_override",
+    "snapshot_override"
+   ],
+   "invalid": {
+    "tool_output_override": "error: [\"invalid_patch\"] patch ToolOutputOverride is not valid for span kind LlmCall",
+    "command_override": "error: [\"invalid_patch\"] patch CommandOverride is not valid for span kind LlmCall",
+    "file_content_override": "error: [\"invalid_patch\"] patch FileContentOverride is not valid for span kind LlmCall",
+    "retrieval_context_override": "error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind LlmCall"
+   },
+   "plans": {
+    "prompt_edit": {
+     "dirty": [
+      {
+       "id": "gen_fix",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "write_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "gen_fix"
+       ]
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      }
+     ],
+     "blocked": [
+      {
+       "id": "root",
+       "reason": "child span plan_fix is blocked"
+      },
+      {
+       "id": "plan_fix",
+       "reason": "child span gen_fix is blocked"
+      },
+      {
+       "id": "gen_fix",
+       "reason": "LlmCall to model 'scripted-fixer' requires an explicit model executor (model mode is 'blocked'); use model mode 'recorded' with a response fixture or 'command' with a provider command"
+      },
+      {
+       "id": "write_fix",
+       "reason": "upstream span gen_fix did not complete: it is blocked"
+      },
+      {
+       "id": "plan_validate",
+       "reason": "child span test_validate is blocked"
+      },
+      {
+       "id": "test_validate",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      },
+      {
+       "id": "diff_stat",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      }
+     ],
+     "reused": 8,
+     "rollup": [
+      "root",
+      "plan_fix",
+      "plan_validate"
+     ],
+     "warnings": []
+    },
+    "model_config_edit": {
+     "dirty": [
+      {
+       "id": "gen_fix",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "write_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "gen_fix"
+       ]
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      }
+     ],
+     "blocked": [
+      {
+       "id": "root",
+       "reason": "child span plan_fix is blocked"
+      },
+      {
+       "id": "plan_fix",
+       "reason": "child span gen_fix is blocked"
+      },
+      {
+       "id": "gen_fix",
+       "reason": "LlmCall to model 'scripted-fixer' requires an explicit model executor (model mode is 'blocked'); use model mode 'recorded' with a response fixture or 'command' with a provider command"
+      },
+      {
+       "id": "write_fix",
+       "reason": "upstream span gen_fix did not complete: it is blocked"
+      },
+      {
+       "id": "plan_validate",
+       "reason": "child span test_validate is blocked"
+      },
+      {
+       "id": "test_validate",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      },
+      {
+       "id": "diff_stat",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      }
+     ],
+     "reused": 8,
+     "rollup": [
+      "root",
+      "plan_fix",
+      "plan_validate"
+     ],
+     "warnings": []
+    },
+    "env_var_override": {
+     "dirty": [
+      {
+       "id": "gen_fix",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "write_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "gen_fix"
+       ]
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      }
+     ],
+     "blocked": [
+      {
+       "id": "root",
+       "reason": "child span plan_fix is blocked"
+      },
+      {
+       "id": "plan_fix",
+       "reason": "child span gen_fix is blocked"
+      },
+      {
+       "id": "gen_fix",
+       "reason": "LlmCall to model 'scripted-fixer' requires an explicit model executor (model mode is 'blocked'); use model mode 'recorded' with a response fixture or 'command' with a provider command"
+      },
+      {
+       "id": "write_fix",
+       "reason": "upstream span gen_fix did not complete: it is blocked"
+      },
+      {
+       "id": "plan_validate",
+       "reason": "child span test_validate is blocked"
+      },
+      {
+       "id": "test_validate",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      },
+      {
+       "id": "diff_stat",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      }
+     ],
+     "reused": 8,
+     "rollup": [
+      "root",
+      "plan_fix",
+      "plan_validate"
+     ],
+     "warnings": []
+    },
+    "snapshot_override": {
+     "dirty": [
+      {
+       "id": "gen_fix",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "write_fix",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "gen_fix"
+       ]
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      }
+     ],
+     "blocked": [
+      {
+       "id": "root",
+       "reason": "child span plan_fix is blocked"
+      },
+      {
+       "id": "plan_fix",
+       "reason": "child span gen_fix is blocked"
+      },
+      {
+       "id": "gen_fix",
+       "reason": "LlmCall to model 'scripted-fixer' requires an explicit model executor (model mode is 'blocked'); use model mode 'recorded' with a response fixture or 'command' with a provider command"
+      },
+      {
+       "id": "write_fix",
+       "reason": "upstream span gen_fix did not complete: it is blocked"
+      },
+      {
+       "id": "plan_validate",
+       "reason": "child span test_validate is blocked"
+      },
+      {
+       "id": "test_validate",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      },
+      {
+       "id": "diff_stat",
+       "reason": "upstream span write_fix did not complete: it is blocked"
+      }
+     ],
+     "reused": 8,
+     "rollup": [
+      "root",
+      "plan_fix",
+      "plan_validate"
+     ],
+     "warnings": []
+    }
+   }
+  },
+  "write_fix": {
+   "valid": [
+    "env_var_override",
+    "file_content_override",
+    "snapshot_override"
+   ],
+   "invalid": {
+    "prompt_edit": "error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind FileWrite",
+    "model_config_edit": "error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind FileWrite",
+    "tool_output_override": "error: [\"invalid_patch\"] patch ToolOutputOverride is not valid for span kind FileWrite",
+    "command_override": "error: [\"invalid_patch\"] patch CommandOverride is not valid for span kind FileWrite",
+    "retrieval_context_override": "error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind FileWrite"
+   },
+   "plans": {
+    "env_var_override": {
+     "dirty": [
+      {
+       "id": "write_fix",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      }
+     ],
+     "blocked": [],
+     "reused": 9,
+     "rollup": [
+      "root",
+      "plan_fix",
+      "plan_validate"
+     ],
+     "warnings": []
+    },
+    "file_content_override": {
+     "dirty": [
+      {
+       "id": "write_fix",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      }
+     ],
+     "blocked": [],
+     "reused": 9,
+     "rollup": [
+      "root",
+      "plan_fix",
+      "plan_validate"
+     ],
+     "warnings": []
+    },
+    "snapshot_override": {
+     "dirty": [
+      {
+       "id": "write_fix",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "upstream_output_changed"
+       ],
+       "by": [
+        "write_fix"
+       ]
+      }
+     ],
+     "blocked": [],
+     "reused": 9,
+     "rollup": [
+      "root",
+      "plan_fix",
+      "plan_validate"
+     ],
+     "warnings": []
+    }
+   }
+  },
+  "plan_validate": {
+   "valid": [
+    "env_var_override",
+    "snapshot_override"
+   ],
+   "invalid": {
+    "prompt_edit": "error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind PlannerStep",
+    "model_config_edit": "error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind PlannerStep",
+    "tool_output_override": "error: [\"invalid_patch\"] patch ToolOutputOverride is not valid for span kind PlannerStep",
+    "command_override": "error: [\"invalid_patch\"] patch CommandOverride is not valid for span kind PlannerStep",
+    "file_content_override": "error: [\"invalid_patch\"] patch FileContentOverride is not valid for span kind PlannerStep",
+    "retrieval_context_override": "error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind PlannerStep"
+   },
+   "plans": {
+    "env_var_override": {
+     "dirty": [
+      {
+       "id": "plan_validate",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "dependency_unknown"
+       ],
+       "by": [
+        "plan_validate"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "dependency_unknown"
+       ],
+       "by": [
+        "plan_validate"
+       ]
+      }
+     ],
+     "blocked": [],
+     "reused": 11,
+     "rollup": [
+      "root"
+     ],
+     "warnings": []
+    },
+    "snapshot_override": {
+     "dirty": [
+      {
+       "id": "plan_validate",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      },
+      {
+       "id": "test_validate",
+       "reasons": [
+        "dependency_unknown"
+       ],
+       "by": [
+        "plan_validate"
+       ]
+      },
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "dependency_unknown"
+       ],
+       "by": [
+        "plan_validate"
+       ]
+      }
+     ],
+     "blocked": [],
+     "reused": 11,
+     "rollup": [
+      "root"
+     ],
+     "warnings": []
+    }
+   }
+  },
+  "test_validate": {
+   "valid": [
+    "env_var_override",
+    "command_override",
+    "snapshot_override"
+   ],
+   "invalid": {
+    "prompt_edit": "error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind ShellCommand",
+    "model_config_edit": "error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind ShellCommand",
+    "tool_output_override": "error: [\"invalid_patch\"] patch ToolOutputOverride is not valid for span kind ShellCommand",
+    "file_content_override": "error: [\"invalid_patch\"] patch FileContentOverride is not valid for span kind ShellCommand",
+    "retrieval_context_override": "error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind ShellCommand"
+   },
+   "plans": {
+    "env_var_override": {
+     "dirty": [
+      {
+       "id": "test_validate",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      }
+     ],
+     "blocked": [],
+     "reused": 12,
+     "rollup": [
+      "root",
+      "plan_validate"
+     ],
+     "warnings": []
+    },
+    "command_override": {
+     "dirty": [
+      {
+       "id": "test_validate",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      }
+     ],
+     "blocked": [],
+     "reused": 12,
+     "rollup": [
+      "root",
+      "plan_validate"
+     ],
+     "warnings": []
+    },
+    "snapshot_override": {
+     "dirty": [
+      {
+       "id": "test_validate",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      }
+     ],
+     "blocked": [],
+     "reused": 12,
+     "rollup": [
+      "root",
+      "plan_validate"
+     ],
+     "warnings": []
+    }
+   }
+  },
+  "diff_stat": {
+   "valid": [
+    "env_var_override",
+    "command_override",
+    "snapshot_override"
+   ],
+   "invalid": {
+    "prompt_edit": "error: [\"invalid_patch\"] patch PromptEdit is not valid for span kind ShellCommand",
+    "model_config_edit": "error: [\"invalid_patch\"] patch ModelConfigEdit is not valid for span kind ShellCommand",
+    "tool_output_override": "error: [\"invalid_patch\"] patch ToolOutputOverride is not valid for span kind ShellCommand",
+    "file_content_override": "error: [\"invalid_patch\"] patch FileContentOverride is not valid for span kind ShellCommand",
+    "retrieval_context_override": "error: [\"invalid_patch\"] patch RetrievalContextOverride is not valid for span kind ShellCommand"
+   },
+   "plans": {
+    "env_var_override": {
+     "dirty": [
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      }
+     ],
+     "blocked": [],
+     "reused": 12,
+     "rollup": [
+      "root",
+      "plan_validate"
+     ],
+     "warnings": []
+    },
+    "command_override": {
+     "dirty": [
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      }
+     ],
+     "blocked": [],
+     "reused": 12,
+     "rollup": [
+      "root",
+      "plan_validate"
+     ],
+     "warnings": []
+    },
+    "snapshot_override": {
+     "dirty": [
+      {
+       "id": "diff_stat",
+       "reasons": [
+        "patched_input"
+       ],
+       "by": []
+      }
+     ],
+     "blocked": [],
+     "reused": 12,
+     "rollup": [
+      "root",
+      "plan_validate"
+     ],
+     "warnings": []
+    }
+   }
+  }
+ },
+ "forks": [
+  {
+   "id": "prompt",
+   "fork": "gen_fix",
+   "patch": "prompt_edit",
+   "title": "edit the fix prompt",
+   "field": "prompt of Generate fix",
+   "before": "Return the full corrected file.",
+   "after": "… Default the timeout to 2 seconds when none is configured.",
+   "note": "fixer.py, the same deterministic stand-in the agent called, re-ran on the edited prompt; its new fix flowed into the write through the {{gen_fix}} binding.",
+   "model_mode": "command",
+   "branch": {
+    "run_id": "run-0000000000000002",
+    "status": "Completed",
+    "job": "Completed",
+    "executed": 4,
+    "reused": 0
+   },
+   "plan": {
+    "dirty": [
+     {
+      "id": "gen_fix",
+      "reasons": [
+       "patched_input"
+      ],
+      "by": []
+     },
+     {
+      "id": "write_fix",
+      "reasons": [
+       "upstream_output_changed"
+      ],
+      "by": [
+       "gen_fix"
+      ]
+     },
+     {
+      "id": "test_validate",
+      "reasons": [
+       "upstream_output_changed"
+      ],
+      "by": [
+       "write_fix"
+      ]
+     },
+     {
+      "id": "diff_stat",
+      "reasons": [
+       "upstream_output_changed"
+      ],
+      "by": [
+       "write_fix"
+      ]
+     }
+    ],
+    "blocked": [],
+    "reused": 8,
+    "rollup": [
+     "root",
+     "plan_fix",
+     "plan_validate"
+    ],
+    "warnings": []
+   },
+   "default_plan": {
+    "dirty": [
+     {
+      "id": "gen_fix",
+      "reasons": [
+       "patched_input"
+      ],
+      "by": []
+     },
+     {
+      "id": "write_fix",
+      "reasons": [
+       "upstream_output_changed"
+      ],
+      "by": [
+       "gen_fix"
+      ]
+     },
+     {
+      "id": "test_validate",
+      "reasons": [
+       "upstream_output_changed"
+      ],
+      "by": [
+       "write_fix"
+      ]
+     },
+     {
+      "id": "diff_stat",
+      "reasons": [
+       "upstream_output_changed"
+      ],
+      "by": [
+       "write_fix"
+      ]
+     }
+    ],
+    "blocked": [
+     {
+      "id": "root",
+      "reason": "child span plan_fix is blocked"
+     },
+     {
+      "id": "plan_fix",
+      "reason": "child span gen_fix is blocked"
+     },
+     {
+      "id": "gen_fix",
+      "reason": "LlmCall to model 'scripted-fixer' requires an explicit model executor (model mode is 'blocked'); use model mode 'recorded' with a response fixture or 'command' with a provider command"
+     },
+     {
+      "id": "write_fix",
+      "reason": "upstream span gen_fix did not complete: it is blocked"
+     },
+     {
+      "id": "plan_validate",
+      "reason": "child span test_validate is blocked"
+     },
+     {
+      "id": "test_validate",
+      "reason": "upstream span write_fix did not complete: it is blocked"
+     },
+     {
+      "id": "diff_stat",
+      "reason": "upstream span write_fix did not complete: it is blocked"
+     }
+    ],
+    "reused": 8,
+    "rollup": [
+     "root",
+     "plan_fix",
+     "plan_validate"
+    ],
+    "warnings": []
+   },
+   "steps": [
+    {
+     "id": "gen_fix",
+     "status": "Completed",
+     "error": null,
+     "out": [
+      {
+       "id": "artifact-000000000000002e",
+       "type": "model_response",
+       "text": "import os\n\n# Seconds to wait for a pooled connection.\nDEFAULT_TIMEOUT = float(os.environ.get(\"AUTH_POOL_TIMEOUT\", \"2\"))\n\n\ndef init_session(pool, timeout=None):\n    if timeout is None:\n        timeout = DEFAULT_TIMEOUT\n    conn = pool.acquire(timeout=timeout)\n    return {\"conn\": conn}"
+      }
+     ],
+     "out_fp": "8712bcf6de41",
+     "reused": false,
+     "ran": {
+      "prompt": "Return the full corrected file. Default the timeout to 2 seconds when none is configured."
+     },
+     "patched": false
+    },
+    {
+     "id": "write_fix",
+     "status": "Completed",
+     "error": null,
+     "out": [
+      {
+       "id": "artifact-0000000000000031",
+       "type": "file_diff",
+       "text": "--- a/auth/session.py\n+++ b/auth/session.py\n@@ -1,3 +1,11 @@\n-def init_session(pool):\n-    conn = pool.acquire()\n+import os\n+\n+# Seconds to wait for a pooled connection.\n+DEFAULT_TIMEOUT = float(os.environ.get(\"AUTH_POOL_TIMEOUT\", \"2\"))\n+\n+\n+def init_session(pool, timeout=None):\n+    if timeout is None:\n+        timeout = DEFAULT_TIMEOUT\n+    conn = pool.acquire(timeout=timeout)\n     return {\"conn\": conn}"
+      }
+     ],
+     "out_fp": "8712bcf6de41",
+     "reused": false,
+     "ran": {},
+     "patched": false
+    },
+    {
+     "id": "test_validate",
+     "status": "Completed",
+     "error": null,
+     "out": [
+      {
+       "id": "artifact-0000000000000036",
+       "type": "shell_stdout",
+       "text": "tests/test_login.py::test_invalid_credentials ... ok\ntests/test_login.py::test_login_basic ... ok\ntests/test_login.py::test_login_timeout ... ok\ntests/test_login.py::test_validate_credentials ... ok\ntests/test_session.py::test_init_session ... ok\ntests/test_session.py::test_session_timeout ... ok\nresult: OK. 6 passed"
+      }
+     ],
+     "out_fp": "7928f3d207b0",
+     "reused": false,
+     "ran": {
+      "command": "python3 run_tests.py tests/test_login.py tests/test_session.py"
+     },
+     "patched": false
+    },
+    {
+     "id": "diff_stat",
+     "status": "Completed",
+     "error": null,
+     "out": [
+      {
+       "id": "artifact-0000000000000039",
+       "type": "shell_stdout",
+       "text": " auth/session.py | 12 ++++++++++--\n 1 file changed, 10 insertions(+), 2 deletions(-)"
+      }
+     ],
+     "out_fp": "c78907edd0eb",
+     "reused": false,
+     "ran": {
+      "command": "git diff --stat"
+     },
+     "patched": false
+    }
+   ],
+   "statuses": {
+    "root": "Completed",
+    "plan_repro": "Completed",
+    "read_issue": "Completed",
+    "select_tests": "Completed",
+    "test_repro": "Failed",
+    "plan_search": "Completed",
+    "search_repository": "Completed",
+    "git_log": "Completed",
+    "read_session": "Completed",
+    "plan_fix": "Completed",
+    "gen_fix": "Completed",
+    "write_fix": "Completed",
+    "plan_validate": "Completed",
+    "test_validate": "Completed",
+    "diff_stat": "Completed"
+   },
+   "rollup": [
+    {
+     "id": "root",
+     "from": "Failed",
+     "to": "Completed"
+    },
+    {
+     "id": "plan_fix",
+     "from": "Completed",
+     "to": "Completed"
+    },
+    {
+     "id": "plan_validate",
+     "from": "Failed",
+     "to": "Completed"
+    }
+   ],
+   "diff": {
+    "source_status": "Failed",
+    "target_status": "Completed",
+    "changed_spans": 5,
+    "changed_artifacts": 4,
+    "first_divergent": "gen_fix",
+    "spans": [
+     {
+      "span_id_source": "root",
+      "name": "Fix login timeout bug",
+      "status_change": "Failed -> Completed",
+      "output_changed": false,
+      "dirty_reason": "status_changed"
+     },
+     {
+      "span_id_source": "gen_fix",
+      "name": "Generate fix",
+      "status_change": null,
+      "output_changed": true,
+      "dirty_reason": "fingerprint_changed"
+     },
+     {
+      "span_id_source": "write_fix",
+      "name": "write auth/session.py",
+      "status_change": null,
+      "output_changed": true,
+      "dirty_reason": "fingerprint_changed"
+     },
+     {
+      "span_id_source": "plan_validate",
+      "name": "Validate fix",
+      "status_change": "Failed -> Completed",
+      "output_changed": false,
+      "dirty_reason": "status_changed"
+     },
+     {
+      "span_id_source": "test_validate",
+      "name": "run tests",
+      "status_change": "Failed -> Completed",
+      "output_changed": true,
+      "dirty_reason": "upstream_output_changed"
+     }
+    ]
+   },
+   "workspace": [
+    {
+     "path": "auth/session.py",
+     "change": "modified",
+     "before": "import os\n\n# Seconds to wait for a pooled connection; unset means wait forever.\nDEFAULT_TIMEOUT = float(os.environ.get(\"AUTH_POOL_TIMEOUT\", \"0\")) or None\n\n\ndef init_session(pool, timeout=None):\n    if timeout is None:\n        timeout = DEFAULT_TIMEOUT\n    conn = pool.acquire(timeout=timeout)\n    return {\"conn\": conn}",
+     "after": "import os\n\n# Seconds to wait for a pooled connection.\nDEFAULT_TIMEOUT = float(os.environ.get(\"AUTH_POOL_TIMEOUT\", \"2\"))\n\n\ndef init_session(pool, timeout=None):\n    if timeout is None:\n        timeout = DEFAULT_TIMEOUT\n    conn = pool.acquire(timeout=timeout)\n    return {\"conn\": conn}"
+    }
+   ]
+  },
+  {
+   "id": "shell",
+   "fork": "test_validate",
+   "patch": "env_var_override",
+   "title": "set an env var on the test run",
+   "field": "env of run tests (validate)",
+   "before": "(AUTH_POOL_TIMEOUT unset)",
+   "after": "AUTH_POOL_TIMEOUT=0.05",
+   "note": "Same code, one env var: the recorded fix only fails because no pool timeout is configured.",
+   "model_mode": "blocked",
+   "branch": {
+    "run_id": "run-0000000000000003",
+    "status": "Completed",
+    "job": "Completed",
+    "executed": 1,
+    "reused": 0
+   },
+   "plan": {
+    "dirty": [
+     {
+      "id": "test_validate",
+      "reasons": [
+       "patched_input"
+      ],
+      "by": []
+     }
+    ],
+    "blocked": [],
+    "reused": 12,
+    "rollup": [
+     "root",
+     "plan_validate"
+    ],
+    "warnings": []
+   },
+   "default_plan": null,
+   "steps": [
+    {
+     "id": "test_validate",
+     "status": "Completed",
+     "error": null,
+     "out": [
+      {
+       "id": "artifact-0000000000000040",
+       "type": "shell_stdout",
+       "text": "tests/test_login.py::test_invalid_credentials ... ok\ntests/test_login.py::test_login_basic ... ok\ntests/test_login.py::test_login_timeout ... ok\ntests/test_login.py::test_validate_credentials ... ok\ntests/test_session.py::test_init_session ... ok\ntests/test_session.py::test_session_timeout ... ok\nresult: OK. 6 passed"
+      }
+     ],
+     "out_fp": "7928f3d207b0",
+     "reused": false,
+     "ran": {
+      "command": "python3 run_tests.py tests/test_login.py tests/test_session.py",
+      "env": "AUTH_POOL_TIMEOUT=0.05"
+     },
+     "patched": false
+    }
+   ],
+   "statuses": {
+    "root": "Completed",
+    "plan_repro": "Completed",
+    "read_issue": "Completed",
+    "select_tests": "Completed",
+    "test_repro": "Failed",
+    "plan_search": "Completed",
+    "search_repository": "Completed",
+    "git_log": "Completed",
+    "read_session": "Completed",
+    "plan_fix": "Completed",
+    "gen_fix": "Completed",
+    "write_fix": "Completed",
+    "plan_validate": "Completed",
+    "test_validate": "Completed",
+    "diff_stat": "Completed"
+   },
+   "rollup": [
+    {
+     "id": "root",
+     "from": "Failed",
+     "to": "Completed"
+    },
+    {
+     "id": "plan_validate",
+     "from": "Failed",
+     "to": "Completed"
+    }
+   ],
+   "diff": {
+    "source_status": "Failed",
+    "target_status": "Completed",
+    "changed_spans": 3,
+    "changed_artifacts": 1,
+    "first_divergent": "test_validate",
+    "spans": [
+     {
+      "span_id_source": "root",
+      "name": "Fix login timeout bug",
+      "status_change": "Failed -> Completed",
+      "output_changed": false,
+      "dirty_reason": "status_changed"
+     },
+     {
+      "span_id_source": "plan_validate",
+      "name": "Validate fix",
+      "status_change": "Failed -> Completed",
+      "output_changed": false,
+      "dirty_reason": "status_changed"
+     },
+     {
+      "span_id_source": "test_validate",
+      "name": "run tests",
+      "status_change": "Failed -> Completed",
+      "output_changed": true,
+      "dirty_reason": "fingerprint_changed"
+     }
+    ]
+   },
+   "workspace": []
+  },
+  {
+   "id": "file",
+   "fork": "write_fix",
+   "patch": "file_content_override",
+   "title": "hand-write the fix",
+   "field": "content written to auth/session.py",
+   "before": "DEFAULT_TIMEOUT = float(os.environ.get(\"AUTH_POOL_TIMEOUT\", \"0\")) or None",
+   "after": "DEFAULT_TIMEOUT = float(os.environ.get(\"AUTH_POOL_TIMEOUT\", \"2\"))",
+   "note": "The hand-written file was written into the sandbox, and the tests and git diff re-ran against it.",
+   "model_mode": "blocked",
+   "branch": {
+    "run_id": "run-0000000000000004",
+    "status": "Completed",
+    "job": "Completed",
+    "executed": 3,
+    "reused": 0
+   },
+   "plan": {
+    "dirty": [
+     {
+      "id": "write_fix",
+      "reasons": [
+       "patched_input"
+      ],
+      "by": []
+     },
+     {
+      "id": "test_validate",
+      "reasons": [
+       "upstream_output_changed"
+      ],
+      "by": [
+       "write_fix"
+      ]
+     },
+     {
+      "id": "diff_stat",
+      "reasons": [
+       "upstream_output_changed"
+      ],
+      "by": [
+       "write_fix"
+      ]
+     }
+    ],
+    "blocked": [],
+    "reused": 9,
+    "rollup": [
+     "root",
+     "plan_fix",
+     "plan_validate"
+    ],
+    "warnings": []
+   },
+   "default_plan": null,
+   "steps": [
+    {
+     "id": "write_fix",
+     "status": "Completed",
+     "error": null,
+     "out": [
+      {
+       "id": "artifact-0000000000000049",
+       "type": "file_diff",
+       "text": "--- a/auth/session.py\n+++ b/auth/session.py\n@@ -1,3 +1,11 @@\n-def init_session(pool):\n-    conn = pool.acquire()\n+import os\n+\n+# Seconds to wait for a pooled connection (default 2).\n+DEFAULT_TIMEOUT = float(os.environ.get(\"AUTH_POOL_TIMEOUT\", \"2\"))\n+\n+\n+def init_session(pool, timeout=None):\n+    if timeout is None:\n+        timeout = DEFAULT_TIMEOUT\n+    conn = pool.acquire(timeout=timeout)\n     return {\"conn\": conn}"
+      }
+     ],
+     "out_fp": "9b6f9d0ec92b",
+     "reused": false,
+     "ran": {},
+     "patched": false
+    },
+    {
+     "id": "test_validate",
+     "status": "Completed",
+     "error": null,
+     "out": [
+      {
+       "id": "artifact-000000000000004e",
+       "type": "shell_stdout",
+       "text": "tests/test_login.py::test_invalid_credentials ... ok\ntests/test_login.py::test_login_basic ... ok\ntests/test_login.py::test_login_timeout ... ok\ntests/test_login.py::test_validate_credentials ... ok\ntests/test_session.py::test_init_session ... ok\ntests/test_session.py::test_session_timeout ... ok\nresult: OK. 6 passed"
+      }
+     ],
+     "out_fp": "7928f3d207b0",
+     "reused": false,
+     "ran": {
+      "command": "python3 run_tests.py tests/test_login.py tests/test_session.py"
+     },
+     "patched": false
+    },
+    {
+     "id": "diff_stat",
+     "status": "Completed",
+     "error": null,
+     "out": [
+      {
+       "id": "artifact-0000000000000051",
+       "type": "shell_stdout",
+       "text": " auth/session.py | 12 ++++++++++--\n 1 file changed, 10 insertions(+), 2 deletions(-)"
+      }
+     ],
+     "out_fp": "c78907edd0eb",
+     "reused": false,
+     "ran": {
+      "command": "git diff --stat"
+     },
+     "patched": false
+    }
+   ],
+   "statuses": {
+    "root": "Completed",
+    "plan_repro": "Completed",
+    "read_issue": "Completed",
+    "select_tests": "Completed",
+    "test_repro": "Failed",
+    "plan_search": "Completed",
+    "search_repository": "Completed",
+    "git_log": "Completed",
+    "read_session": "Completed",
+    "plan_fix": "Completed",
+    "gen_fix": "Completed",
+    "write_fix": "Completed",
+    "plan_validate": "Completed",
+    "test_validate": "Completed",
+    "diff_stat": "Completed"
+   },
+   "rollup": [
+    {
+     "id": "root",
+     "from": "Failed",
+     "to": "Completed"
+    },
+    {
+     "id": "plan_fix",
+     "from": "Completed",
+     "to": "Completed"
+    },
+    {
+     "id": "plan_validate",
+     "from": "Failed",
+     "to": "Completed"
+    }
+   ],
+   "diff": {
+    "source_status": "Failed",
+    "target_status": "Completed",
+    "changed_spans": 4,
+    "changed_artifacts": 3,
+    "first_divergent": "write_fix",
+    "spans": [
+     {
+      "span_id_source": "root",
+      "name": "Fix login timeout bug",
+      "status_change": "Failed -> Completed",
+      "output_changed": false,
+      "dirty_reason": "status_changed"
+     },
+     {
+      "span_id_source": "write_fix",
+      "name": "write auth/session.py",
+      "status_change": null,
+      "output_changed": true,
+      "dirty_reason": "fingerprint_changed"
+     },
+     {
+      "span_id_source": "plan_validate",
+      "name": "Validate fix",
+      "status_change": "Failed -> Completed",
+      "output_changed": false,
+      "dirty_reason": "status_changed"
+     },
+     {
+      "span_id_source": "test_validate",
+      "name": "run tests",
+      "status_change": "Failed -> Completed",
+      "output_changed": true,
+      "dirty_reason": "upstream_output_changed"
+     }
+    ]
+   },
+   "workspace": [
+    {
+     "path": "auth/session.py",
+     "change": "modified",
+     "before": "import os\n\n# Seconds to wait for a pooled connection; unset means wait forever.\nDEFAULT_TIMEOUT = float(os.environ.get(\"AUTH_POOL_TIMEOUT\", \"0\")) or None\n\n\ndef init_session(pool, timeout=None):\n    if timeout is None:\n        timeout = DEFAULT_TIMEOUT\n    conn = pool.acquire(timeout=timeout)\n    return {\"conn\": conn}",
+     "after": "import os\n\n# Seconds to wait for a pooled connection (default 2).\nDEFAULT_TIMEOUT = float(os.environ.get(\"AUTH_POOL_TIMEOUT\", \"2\"))\n\n\ndef init_session(pool, timeout=None):\n    if timeout is None:\n        timeout = DEFAULT_TIMEOUT\n    conn = pool.acquire(timeout=timeout)\n    return {\"conn\": conn}"
+    }
+   ]
+  },
+  {
+   "id": "tool",
+   "fork": "select_tests",
+   "patch": "tool_output_override",
+   "title": "override the test selection",
+   "field": "output of select_tests",
+   "before": "tests/test_login.py  tests/test_session.py",
+   "after": "tests/test_session.py",
+   "note": "Green, but only because the login tests were never selected: both test commands picked up the narrowed list through {{select_tests|words}}.",
+   "model_mode": "blocked",
+   "branch": {
+    "run_id": "run-0000000000000005",
+    "status": "Completed",
+    "job": "Completed",
+    "executed": 2,
+    "reused": 0
+   },
+   "plan": {
+    "dirty": [
+     {
+      "id": "select_tests",
+      "reasons": [
+       "patched_input"
+      ],
+      "by": []
+     },
+     {
+      "id": "test_repro",
+      "reasons": [
+       "upstream_output_changed"
+      ],
+      "by": [
+       "select_tests"
+      ]
+     },
+     {
+      "id": "test_validate",
+      "reasons": [
+       "upstream_output_changed"
+      ],
+      "by": [
+       "select_tests"
+      ]
+     }
+    ],
+    "blocked": [],
+    "reused": 9,
+    "rollup": [
+     "root",
+     "plan_repro",
+     "plan_validate"
+    ],
+    "warnings": []
+   },
+   "default_plan": null,
+   "steps": [
+    {
+     "id": "select_tests",
+     "status": "Completed",
+     "error": null,
+     "out": [
+      {
+       "id": "artifact-0000000000000058",
+       "type": "tool_output",
+       "text": "tests/test_session.py"
+      }
+     ],
+     "out_fp": "b0e5b2d88ab3",
+     "reused": false,
+     "ran": {
+      "command": "git ls-files tests"
+     },
+     "patched": true
+    },
+    {
+     "id": "test_repro",
+     "status": "Failed",
+     "error": "command exited with code 1: FAILED test_session_timeout: TypeError: init_session() got an unexpected keyword argument 'timeout'",
+     "out": [
+      {
+       "id": "artifact-000000000000005b",
+       "type": "shell_stdout",
+       "text": "tests/test_session.py::test_init_session ... ok\ntests/test_session.py::test_session_timeout ... FAILED\nresult: FAILED. 1 passed; 1 failed"
+      },
+      {
+       "id": "artifact-000000000000005c",
+       "type": "shell_stderr",
+       "text": "FAILED test_session_timeout: TypeError: init_session() got an unexpected keyword argument 'timeout'"
+      }
+     ],
+     "out_fp": "e854f0b12fb9",
+     "reused": false,
+     "ran": {
+      "command": "python3 run_tests.py tests/test_session.py"
+     },
+     "patched": false
+    },
+    {
+     "id": "test_validate",
+     "status": "Completed",
+     "error": null,
+     "out": [
+      {
+       "id": "artifact-000000000000006f",
+       "type": "shell_stdout",
+       "text": "tests/test_session.py::test_init_session ... ok\ntests/test_session.py::test_session_timeout ... ok\nresult: OK. 2 passed"
+      }
+     ],
+     "out_fp": "eda2fafce80e",
+     "reused": false,
+     "ran": {
+      "command": "python3 run_tests.py tests/test_session.py"
+     },
+     "patched": false
+    }
+   ],
+   "statuses": {
+    "root": "Completed",
+    "plan_repro": "Completed",
+    "read_issue": "Completed",
+    "select_tests": "Completed",
+    "test_repro": "Failed",
+    "plan_search": "Completed",
+    "search_repository": "Completed",
+    "git_log": "Completed",
+    "read_session": "Completed",
+    "plan_fix": "Completed",
+    "gen_fix": "Completed",
+    "write_fix": "Completed",
+    "plan_validate": "Completed",
+    "test_validate": "Completed",
+    "diff_stat": "Completed"
+   },
+   "rollup": [
+    {
+     "id": "root",
+     "from": "Failed",
+     "to": "Completed"
+    },
+    {
+     "id": "plan_repro",
+     "from": "Completed",
+     "to": "Completed"
+    },
+    {
+     "id": "plan_validate",
+     "from": "Failed",
+     "to": "Completed"
+    }
+   ],
+   "diff": {
+    "source_status": "Failed",
+    "target_status": "Completed",
+    "changed_spans": 5,
+    "changed_artifacts": 4,
+    "first_divergent": "select_tests",
+    "spans": [
+     {
+      "span_id_source": "root",
+      "name": "Fix login timeout bug",
+      "status_change": "Failed -> Completed",
+      "output_changed": false,
+      "dirty_reason": "status_changed"
+     },
+     {
+      "span_id_source": "select_tests",
+      "name": "select_tests",
+      "status_change": null,
+      "output_changed": true,
+      "dirty_reason": "upstream_output_changed"
+     },
+     {
+      "span_id_source": "test_repro",
+      "name": "run tests",
+      "status_change": null,
+      "output_changed": true,
+      "dirty_reason": "fingerprint_changed"
+     },
+     {
+      "span_id_source": "plan_validate",
+      "name": "Validate fix",
+      "status_change": "Failed -> Completed",
+      "output_changed": false,
+      "dirty_reason": "status_changed"
+     },
+     {
+      "span_id_source": "test_validate",
+      "name": "run tests",
+      "status_change": "Failed -> Completed",
+      "output_changed": true,
+      "dirty_reason": "fingerprint_changed"
+     }
+    ]
+   },
+   "workspace": []
+  }
+ ]
+}

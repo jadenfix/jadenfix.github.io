@@ -16,22 +16,40 @@ const fmtDur = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
 function shortLine(l: string) {
   const m = /^tests\/\w+\.py::(\S+) \.\.\. (\S+)$/.exec(l);
   if (m) return `${m[1]}  ${m[2]}`;
-  const r = /^result: \w+\. (\d+) passed; (\d+) failed$/.exec(l);
-  return r ? `result: ${r[1]} passed, ${r[2]} failed` : l;
+  const r = /^result: \w+\. (\d+) passed(?:; (\d+) failed)?$/.exec(l);
+  return r ? `result: ${r[1]} passed, ${r[2] ?? 0} failed` : l;
 }
 
 const lastLine = (t: string | null | undefined) => (t ?? '').trim().split('\n').pop() ?? '';
 
 type DiffRow = { kind: 'same'; text: string } | { kind: 'fold'; n: number } | { kind: 'change'; a: string | null; b: string | null };
 
+/** line diff (LCS), with removed and added lines paired side by side */
 function diffRows(a: string[], b: string[]): DiffRow[] {
+  const n = a.length;
+  const m = b.length;
+  const lcs = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) lcs[i][j] = a[i] === b[j] ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1]);
   const raw: DiffRow[] = [];
-  for (let i = 0; i < Math.max(a.length, b.length); i++) {
-    const x = a[i] ?? null;
-    const y = b[i] ?? null;
-    if (x === y) raw.push({ kind: 'same', text: x ?? '' });
-    else raw.push({ kind: 'change', a: x, b: y });
+  let del: string[] = [];
+  let add: string[] = [];
+  const flush = () => {
+    for (let k = 0; k < Math.max(del.length, add.length); k++) raw.push({ kind: 'change', a: del[k] ?? null, b: add[k] ?? null });
+    del = [];
+    add = [];
+  };
+  let i = 0;
+  let j = 0;
+  while (i < n || j < m) {
+    if (i < n && j < m && a[i] === b[j]) {
+      flush();
+      raw.push({ kind: 'same', text: a[i] });
+      i++;
+      j++;
+    } else if (j >= m || (i < n && lcs[i + 1][j] >= lcs[i][j + 1])) del.push(a[i++]);
+    else add.push(b[j++]);
   }
+  flush();
   // fold runs of three or more unchanged lines
   const out: DiffRow[] = [];
   for (let i = 0; i < raw.length; ) {
@@ -52,14 +70,33 @@ function Label({ children }: { children: ReactNode }) {
   return <div className="truncate text-[10px] lowercase tracking-[0.14em] text-dim">{children}</div>;
 }
 
+/** the first line of `next` that the recording did not have (for model answers and file diffs) */
+function firstNewLine(prev: string | null | undefined, next: string | null | undefined) {
+  const seen = new Set((prev ?? '').split('\n'));
+  return (next ?? '').split('\n').find((l) => l.trim() && !seen.has(l) && !l.startsWith('+++') && !l.startsWith('---'))?.trim() ?? lastLine(next);
+}
+
 /** what ReplayKit did with one dirty span, in a line */
 function stepNote(step: Step, src: Span): string {
   if (step.status === 'Blocked') return (step.error ?? 'blocked').replace(/^replay blocked: /, '');
-  if (step.out.some((o) => o.type === 'patch_manifest')) return 'patch accepted as the span output';
+  if (step.patched) return 'patch accepted as the span output';
+  if (step.reused) return 'reused: its upstream replayed to the recorded output';
   const same = step.out_fp === src.out_fp;
-  const stdout = step.out.find((o) => o.type === 'shell_stdout') ?? step.out[0];
-  return `re-ran: ${lastLine(stdout?.text)}${same ? ' · identical to recording' : ' · output changed'}`;
+  const main = step.out.find((o) => o.type === 'shell_stdout') ?? step.out[0];
+  const line = main && (main.type === 'model_response' || main.type === 'file_diff') && !same ? firstNewLine(src.out[0]?.text, main.text) : shortLine(lastLine(main?.text));
+  return `${line}${same ? ' · identical to recording' : ' · output changed'}`;
 }
+
+/** the patched or re-bound input a re-run actually used, when it differs from the recording */
+function inputNote(step: Step, src: Span): string | null {
+  const r = step.ran;
+  if (r.env) return `env ${r.env}`;
+  if (r.command && r.command !== src.attrs.command) return `$ ${r.command}`;
+  if (r.prompt && r.prompt !== src.attrs.prompt) return `prompt … ${r.prompt}`;
+  return null;
+}
+
+const names = (ids: string[], byId: Map<string, Span>) => ids.map((id) => byId.get(id)?.name ?? id).join(', ');
 
 export default function ReplayDemo() {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -90,9 +127,11 @@ export default function ReplayDemo() {
       )}
       <p className="mt-5 border-t border-line pt-4 text-[11px] leading-[1.8] text-faint">
         A real run, recorded and replayed by ReplayKit{data ? ` (commit ${data.meta.replaykit_commit})` : ''}. A small scripted agent fixed a throwaway git repo
-        while ReplayKit&apos;s collector recorded each step, and every arc is an artifact a step actually read. The four forks were planned and executed offline
-        by ReplayKit&apos;s CLI: shell and file steps re-ran for real, and the plans, outputs, blocked reasons and diffs are ReplayKit&apos;s own, replayed here in
-        the browser. The llm step is a deterministic local stand-in, so no model was called.
+        while ReplayKit&apos;s collector recorded each step and snapshotted the workspace at every step boundary; every arc is an artifact a step actually read.
+        The four forks were planned and executed offline by ReplayKit&apos;s CLI, each in a sandbox restored from those snapshots, so the patched shell, tool
+        and file steps re-ran for real against the repo as it was at that point. The llm step is a deterministic local stand-in (fixer.py), plugged in as the
+        model provider for the prompt fork, so no hosted model was called. Plans, blocked reasons, outputs and diffs are ReplayKit&apos;s own, replayed here in
+        the browser.
       </p>
     </div>
   );
@@ -113,7 +152,9 @@ function Demo({ data, visible, reduce }: { data: ReplayData; visible: boolean; r
   const span = selected ? byId.get(selected)! : null;
   const fork = forks.find((f) => f.fork === selected) ?? null;
   const patch = fork?.patch ?? (span ? defaultPatch(span.kind) : 'env_var_override');
-  const plan = selected ? plans[selected].plans[patch] ?? null : null;
+  const plan = fork ? fork.plan : selected ? plans[selected].plans[patch] ?? null : null;
+  const rollup = new Set(plan?.rollup ?? []);
+  const firstDirty = plan?.dirty[0] ? byId.get(plan.dirty[0].id) : undefined;
   const steps: Step[] = fork?.steps ?? [];
 
   // one timer drives the replay, and (until the visitor takes over) a slow tour through the forks
@@ -183,8 +224,11 @@ function Demo({ data, visible, reduce }: { data: ReplayData; visible: boolean; r
   for (const s of spans) {
     const d = dirtyMap.get(s.id);
     if (phase === 'idle' || !plan) rows[s.id] = { kind: 'recorded', status: s.status };
-    else if (!d) rows[s.id] = { kind: 'cached', status: fork && phase === 'diff' ? fork.statuses[s.id] : s.status };
-    else if (phase === 'plan' || !fork) rows[s.id] = { kind: 'dirty', status: s.status, reasons: d.reasons, blocked: plan.blocked.includes(s.id) };
+    else if (rollup.has(s.id)) {
+      const st = fork && phase === 'diff' ? fork.statuses[s.id] : s.status;
+      rows[s.id] = { kind: 'rollup', status: st, changed: st !== s.status };
+    } else if (!d) rows[s.id] = { kind: 'cached', status: fork && phase === 'diff' ? fork.statuses[s.id] : s.status };
+    else if (phase === 'plan' || !fork) rows[s.id] = { kind: 'dirty', status: s.status, reasons: d.reasons, blocked: plan.blocked.some((b) => b.id === s.id) };
     else {
       const i = stepIdx.get(s.id) ?? 0;
       if (phase === 'diff' || i < progress) rows[s.id] = { kind: 'replayed', status: fork.statuses[s.id], changed: changedIds.has(s.id) };
@@ -206,7 +250,8 @@ function Demo({ data, visible, reduce }: { data: ReplayData; visible: boolean; r
         </p>
         <p className="mt-4 text-[12px] leading-[1.75] text-dim">
           A scripted agent reproduced a hanging-login bug, patched session.py and re-ran the tests: one still fails. Pick a step and fork it. ReplayKit follows
-          the recorded data edges out of the patched span, re-runs that dirty set and reuses everything else.
+          the recorded data edges out of the patched step, re-runs that dirty set with the patched inputs in a sandbox restored from the recorded workspace,
+          and reuses everything else.
         </p>
         <div className="mt-auto">
           <Label>real forks</Label>
@@ -233,12 +278,12 @@ function Demo({ data, visible, reduce }: { data: ReplayData; visible: boolean; r
           {span.executor ?? 'no executor'} · recorded <span style={{ color: STATUS_COLOR[span.status] }}>{span.status.toLowerCase()}</span>
         </p>
         {fork ? (
-          <div className="mt-4 border border-line">
+          <div className="mt-3 border border-line">
             <div className="flex justify-between gap-3 border-b border-line px-3 py-1.5 text-[10px] text-faint">
               <span className="whitespace-nowrap">patch_manifest · {fork.patch}</span>
               <span className="hidden truncate sm:inline">{fork.field}</span>
             </div>
-            <div className="space-y-1 px-3 py-2 text-[11px] leading-[1.6]">
+            <div className="space-y-0.5 px-3 py-1.5 text-[11px] leading-[1.6]">
               <div className="line-clamp-2 text-faint">
                 <span className="text-[#ec5c52]/80">- </span>
                 {fork.before}
@@ -252,17 +297,19 @@ function Demo({ data, visible, reduce }: { data: ReplayData; visible: boolean; r
         ) : (
           <>
             {rec ? (
-              <div className="mt-4 border border-line px-3 py-2 text-[10.5px] leading-[1.6] text-faint">
-                <div className="mb-1 text-[10px] text-dim">recorded {span.out[0].type}</div>
-                <pre className="line-clamp-3 whitespace-pre-wrap break-all font-mono">{rec}</pre>
+              <div className="mt-3 border border-line px-3 py-1.5 text-[10.5px] leading-[1.6] text-faint">
+                <pre className="line-clamp-2 whitespace-pre-wrap break-all font-mono">
+                  <span className="text-dim">recorded {span.out[0].type} </span>
+                  {rec}
+                </pre>
               </div>
             ) : null}
-            <p className="mt-3 text-[11px] leading-[1.7] text-dim">
-              Valid here: {valid.join(', ')}. Rows lit up are ReplayKit&apos;s real plan for a fork with {patch}; the four real forks are under [ back ].
+            <p className="mt-2 truncate text-[11px] leading-[1.7] text-dim" title={`valid patches: ${valid.join(', ')}`}>
+              lit rows: ReplayKit&apos;s plan for {patch}
             </p>
           </>
         )}
-        <dl className="mt-4 grid grid-cols-3 border-y border-line text-[11px]">
+        <dl className="mt-3 grid grid-cols-3 border-y border-line text-[11px]">
           {(
             [
               ['dirty', plan.dirty.length, 'text-phos'],
@@ -276,17 +323,24 @@ function Demo({ data, visible, reduce }: { data: ReplayData; visible: boolean; r
             </div>
           ))}
         </dl>
-        <p className="mt-3 line-clamp-3 text-[10.5px] leading-[1.7] text-faint">
+        <p className="mt-3 line-clamp-2 text-[10.5px] leading-[1.7] text-faint">
           {plan.dirty.map((d, i) => (
             <span key={d.id}>
               {i ? ' · ' : ''}
               {byId.get(d.id)!.name} <span className="text-dim">{d.reasons[0]}</span>
             </span>
           ))}
+          {plan.rollup.length > 0 && <span className="text-dim"> · status re-derived: {names(plan.rollup, byId)}</span>}
         </p>
-        {span.kind === 'LlmCall' && (
-          <p className="mt-2 text-[10.5px] leading-[1.6] text-faint">plan_fork counts llm calls as executable; the model executor decides at run time.</p>
-        )}
+        {fork?.default_plan ? (
+          <p className="mt-2 truncate text-[10.5px] leading-[1.6] text-faint">
+            default model mode: <span className="text-ice">{fork.default_plan.blocked.length} spans block</span>; this fork plugs in fixer.py
+          </p>
+        ) : plan.blocked.length > 0 ? (
+          <p className="mt-2 truncate text-[10.5px] leading-[1.6] text-faint">
+            <span className="text-ice">blocked</span> {(plan.blocked.find((b) => b.id === span.id) ?? plan.blocked.find((b) => !rollup.has(b.id)) ?? plan.blocked[0]).reason}
+          </p>
+        ) : null}
         <div className="mt-auto flex gap-4 pt-2 text-[12px]">
           {fork && (
             <button type="button" onClick={startFork} className={`${BTN} text-phos hover:text-bone`}>
@@ -308,7 +362,9 @@ function Demo({ data, visible, reduce }: { data: ReplayData; visible: boolean; r
         <h4 className="display mt-2 text-[26px] leading-tight">
           Replaying {Math.min(progress + 1, steps.length)} of {steps.length}
         </h4>
-        <p className="mt-1 text-[11px] text-faint">{plan.reused} spans reused from the recording, not re-run</p>
+        <p className="mt-1 text-[11px] text-faint">
+          {plan.reused} spans reused · sandbox restored from the snapshot before step {firstDirty?.seq ?? span.seq}
+        </p>
         <ol className="mt-4 space-y-1.5 text-[11px]">
           {steps.map((s, i) => {
             const sp = byId.get(s.id)!;
@@ -321,6 +377,7 @@ function Demo({ data, visible, reduce }: { data: ReplayData; visible: boolean; r
                 </span>
                 <span className="min-w-0">
                   <span className="block truncate text-bone/90">{sp.name}</span>
+                  {inputNote(s, sp) && <span className="block truncate text-[10px] text-dim">{inputNote(s, sp)}</span>}
                   <span className="block truncate text-[10px] text-faint">{done ? stepNote(s, sp) : ' '}</span>
                 </span>
               </li>
@@ -331,10 +388,15 @@ function Demo({ data, visible, reduce }: { data: ReplayData; visible: boolean; r
     );
   } else if (fork) {
     const d = fork.diff;
-    // the clearest real evidence: a re-run whose output changed, else the patched output itself
-    const rerun = steps.find((s) => s.status !== 'Blocked' && !s.out.some((o) => o.type === 'patch_manifest') && s.out_fp !== byId.get(s.id)!.out_fp);
-    const same = steps.filter((s) => s.status !== 'Blocked' && !s.out.some((o) => o.type === 'patch_manifest') && s.out_fp === byId.get(s.id)!.out_fp);
-    const patched = steps.find((s) => s.out.some((o) => o.type === 'patch_manifest'));
+    // the clearest real evidence: a re-run whose status and output changed, else the patched output itself
+    const ran = steps.filter((s) => s.status !== 'Blocked' && !s.patched && !s.reused);
+    const changed = ran.filter((s) => s.out_fp !== byId.get(s.id)!.out_fp);
+    const isTest = (s: Step) => s.out.some((o) => o.type === 'shell_stdout');
+    const rerun =
+      [...changed].reverse().find((s) => isTest(s) && s.status !== byId.get(s.id)!.status) ?? changed.find(isTest) ?? changed[0];
+    const same = ran.filter((s) => s.out_fp === byId.get(s.id)!.out_fp);
+    const patched = steps.find((s) => s.patched);
+    const flipped = fork.rollup.filter((r) => r.from !== r.to);
     let compare: { label: string; a: string[]; b: string[] } | null = null;
     if (rerun) {
       const src = byId.get(rerun.id)!;
@@ -385,17 +447,26 @@ function Demo({ data, visible, reduce }: { data: ReplayData; visible: boolean; r
               )}
             </div>
             <ul className="mt-3 space-y-1 text-[10.5px] leading-[1.6] text-faint">
-              {rerun && (
-                <li>
-                  Shell steps re-run their recorded command in the repo as the original run left it, so the fix it wrote is already on disk.
+              <li className="line-clamp-2 text-dim">{fork.note}</li>
+              {flipped.length > 0 && (
+                <li className="truncate">
+                  {names(
+                    flipped.map((r) => r.id),
+                    byId,
+                  )}
+                  : {flipped[0].from.toLowerCase()} → {flipped[0].to.toLowerCase()}, re-derived from their children
                 </li>
               )}
+
               {same.map((s) => (
                 <li key={s.id} className="truncate">
-                  <span className="text-dim">{byId.get(s.id)!.name}</span> (step {byId.get(s.id)!.seq}) re-ran: identical fingerprint, not a change
+                  <span className="text-dim">{byId.get(s.id)!.name}</span> (step {byId.get(s.id)!.seq}) re-ran: identical output
                 </li>
               ))}
-              {!rerun && !same.length && <li>Nothing read this output, so nothing else re-ran.</li>}
+              <li className="truncate">
+                sandbox from the step {firstDirty?.seq ?? span.seq} snapshot, live repo untouched
+                {fork.workspace.length > 0 && ` · workspace: ${fork.workspace.map((w) => `${w.path} ${w.change}`).join(', ')}`}
+              </li>
             </ul>
           </>
         ) : (
