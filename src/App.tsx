@@ -6,6 +6,7 @@ import Cursor from './Cursor';
 import { Markdown } from './Markdown';
 import Memories from './Memories';
 import RustyPlayer from './RustyPlayer';
+import RenderField from './sim/RenderField';
 import TimeDial from './TimeDial';
 import WorkIndex from './WorkIndex';
 import { commits, links, roles, tempera, upstream } from './content';
@@ -20,6 +21,7 @@ type Lazy = LazyExoticComponent<ComponentType>;
 
 // Demos load on demand, and a demo that isn't there yet renders a quiet placeholder.
 const demoModules = import.meta.glob<{ default: ComponentType }>('./demos/**/*.tsx');
+const SimulationPage = lazy(() => import('./SimulationPage'));
 const Missing = () => <div className="flex h-[200px] items-center justify-center border border-line text-[11px] text-faint">demo coming soon</div>;
 const demo = (name: string): Lazy => {
   const load = demoModules[`./demos/${name}.tsx`];
@@ -119,11 +121,12 @@ const papers: Paper[] = [
 ];
 
 // ------------------------------------------------------------------ routing
-type Route = { name: 'home'; anchor?: string } | { name: 'blog' } | { name: 'post'; post: Doc } | { name: 'paper'; paper: Paper };
+type Route = { name: 'home'; anchor?: string } | { name: 'blog' } | { name: 'simulation' } | { name: 'post'; post: Doc } | { name: 'paper'; paper: Paper };
 
 function readRoute(): Route {
   const h = window.location.hash;
   if (h === '#/blog' || h === '#/blog/') return { name: 'blog' };
+  if (h === '#/simulation' || h === '#/simulation/') return { name: 'simulation' };
   const post = h.match(/^#\/blog\/(.+)$/);
   if (post) {
     const p = posts.find((x) => x.slug === post[1]);
@@ -443,11 +446,32 @@ function Research() {
       {papers.map((p, i) => (
         <PaperBlock key={p.slug} p={p} i={i} />
       ))}
+      <SimPortal />
     </section>
   );
 }
 
-const projects: { id: string; name: string; tag: string; href: string; body: string; Comp: Lazy; h: number; note: Note }[] = [
+/** The way into #/simulation: a strip of the world that renders where you look. */
+function SimPortal() {
+  return (
+    <Reveal className="mt-28">
+      <a href="#/simulation" className="group relative block h-[260px] overflow-hidden border border-line sm:h-[300px]">
+        <RenderField className="absolute inset-0 opacity-90 transition-opacity duration-700 group-hover:opacity-100" />
+        <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgb(var(--c-void)/0.94)_0%,rgb(var(--c-void)/0.7)_45%,transparent_80%)]" />
+        <span className="relative flex h-full max-w-[560px] flex-col justify-end p-6 sm:p-9">
+          <span className="label text-phos">three papers · simulation-theory</span>
+          <span className="display mt-3 text-[30px] leading-[1.08] transition-colors group-hover:text-phos sm:text-[40px]">Does the world render when nobody’s looking?</span>
+          <span className="mt-3 text-[13px] leading-[1.8] text-dim">What a cheap simulator would give away, tested on NIST’s randomness beacon and the Delft Bell test.</span>
+          <span className="label mt-5 text-bone">
+            enter <span className="inline-block transition-transform duration-300 group-hover:translate-x-1">→</span>
+          </span>
+        </span>
+      </a>
+    </Reveal>
+  );
+}
+
+const projects: { id: string; name: string; tag: string; href: string; body: string; Comp: Lazy; h: number; note: Note; more?: { name: string; href: string } }[] = [
   {
     id: 'fullstack-bench',
     name: 'FullStack-Bench',
@@ -479,6 +503,7 @@ const projects: { id: string; name: string; tag: string; href: string; body: str
     name: 'simulation-theory',
     tag: 'theory · python',
     href: 'https://github.com/jadenfix/simulation-theory',
+    more: { name: 'the field guide, with three papers', href: '#/simulation' },
     body: 'What could you actually learn about whether the world is simulated? If a simulation reproduces the same observable law as ordinary physics, nothing: the Bayes factor is exactly 1. The repo maps where that boundary bends, with typed theorems, model results and finite checks. Below, run the experiments yourself.',
     Comp: SimulationDemo,
     note: {
@@ -550,8 +575,9 @@ function Projects() {
               </div>
               <div className="lg:col-span-8">
                 <p className="text-[13px] leading-[1.85] text-dim">{p.body}</p>
-                <div className="mt-4">
+                <div className="mt-4 flex flex-wrap gap-2">
                   <Chip name="github" href={p.href} />
+                  {p.more && <Chip name={p.more.name} href={p.more.href} />}
                 </div>
               </div>
             </div>
@@ -855,6 +881,14 @@ export default function App() {
   if (route.name === 'paper') {
     page = <PaperPage paper={route.paper} />;
     pageKey = `paper:${route.paper.slug}`;
+  }
+  if (route.name === 'simulation') {
+    page = (
+      <Suspense fallback={<div className="h-screen" />}>
+        <SimulationPage />
+      </Suspense>
+    );
+    pageKey = 'simulation';
   }
   return (
     // framer-motion follows the OS reduced-motion setting everywhere

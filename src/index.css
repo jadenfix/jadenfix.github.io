@@ -158,6 +158,7 @@
 .develop[data-in] .dev-color { opacity: 1; }
 .develop[data-in] .dev-frame { transform: none; }
 .develop[data-in] .dev-safe { animation: safelight 3s var(--ease-out) var(--dev-at) both; }
+@keyframes tick-in { from { opacity: 0; } }
 @keyframes safelight { 0% { opacity: 0; } 35% { opacity: 1; } 100% { opacity: 0; } }
 
 /* film grain and the faintest scanlines; felt more than seen */

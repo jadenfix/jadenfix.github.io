@@ -67,7 +67,7 @@ export default function CommandBar() {
       { name: 'tempera', hint: 'the agent platform', run: jump('tempera') },
       { name: 'rusty', hint: 'watch the coding agent work', run: jump('rusty') },
       { name: 'projects', hint: 'everything else', run: jump('projects') },
-      { name: 'simulation', hint: 'is this world simulated?', run: jump('simulation-theory') },
+      { name: 'simulation', hint: 'does the world render when nobody’s looking?', run: () => void (window.location.hash = '/simulation') },
       { name: 'experience', hint: 'where I’ve worked', run: jump('experience') },
       { name: 'memories', hint: 'away from the keyboard', run: jump('memories') },
       { name: 'contact', hint: 'say hello', run: jump('contact') },

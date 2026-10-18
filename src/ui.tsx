@@ -261,9 +261,11 @@ export function Figure({ children, caption, href, hrefLabel }: { children: React
 
 export function Chip({ name, href }: { name: string; href?: string }) {
   if (!href) return <span className="chip border-dashed text-dim">{name}</span>;
+  // links inside the site stay in the tab
+  const inside = href.startsWith('#');
   return (
-    <a className="chip" href={href} target="_blank" rel="noreferrer">
-      {name} <span className="chip-arrow text-faint">↗</span>
+    <a className="chip" href={href} {...(inside ? {} : { target: '_blank', rel: 'noreferrer' })}>
+      {name} <span className="chip-arrow text-faint">{inside ? '→' : '↗'}</span>
     </a>
   );
 }
