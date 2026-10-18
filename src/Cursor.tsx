@@ -33,7 +33,7 @@ export default function Cursor() {
         dot.current!.style.opacity = '1';
         ring.current!.style.opacity = '1';
       }
-      const t = e.target as HTMLElement | null;
+      const t = e.target instanceof Element ? e.target : null;
       const isHot = !!t?.closest('a, button, [role="tab"], [role="radio"], input, select, label, [data-cursor="hot"]');
       if (isHot !== hot) {
         hot = isHot;

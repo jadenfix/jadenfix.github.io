@@ -104,12 +104,28 @@ export default function AsciiHole({ className = '' }: { className?: string }) {
       };
       resize();
       const ro = new ResizeObserver(resize);
+
+      // the pointer is a second, smaller mass: starlight bends around it too
+      const ptr = { col: -99, row: -99, inside: false, mass: 0 };
+      const onMove = (e: PointerEvent) => {
+        const r = main.current!.getBoundingClientRect();
+        ptr.col = (e.clientX - r.left) / cellW;
+        ptr.row = (e.clientY - r.top) / lineH;
+        ptr.inside = ptr.col > 0 && ptr.col < cols && ptr.row > 0 && ptr.row < rows;
+      };
+      const onLeave = () => (ptr.inside = false);
+      window.addEventListener('pointermove', onMove, { passive: true });
+      document.addEventListener('pointerleave', onLeave);
+      const THETA_E = 2.4; // einstein radius of the pointer mass, in line heights
+      const ASPECT = meta.cellAspect;
       ro.observe(wrap.current!);
 
       const draw = (time: number) => {
         const t = time / 1000;
         const ctx = ctxs[0];
         ctx.clearRect(0, 0, cols * cellW, rows * lineH);
+        ptr.mass += ((ptr.inside ? 1 : 0) - ptr.mass) * 0.12;
+        const k = THETA_E * THETA_E * ptr.mass;
         for (let i = 0; i < n; i++) {
           const x = (i % cols) * cellW;
           const y = Math.floor(i / cols) * lineH;
@@ -141,10 +157,26 @@ export default function AsciiHole({ className = '' }: { className?: string }) {
             if (trans < 0.3) continue;
           }
           if (cap[i]) continue;
-          // stars on a drifting sky, sampled through the lens
-          const L = (lon[i] + DRIFT * t) % 1;
+          // stars on a drifting sky, sampled through the lens (and the pointer's lens)
+          let j = i;
+          if (k > 0.01) {
+            const col = (i % cols) + 0.5;
+            const row = Math.floor(i / cols) + 0.5;
+            const dx = (col - ptr.col) * ASPECT;
+            const dy = row - ptr.row;
+            const r2 = dx * dx + dy * dy;
+            if (r2 < 0.36 * k) continue; // its own small shadow
+            if (r2 < 60 * k) {
+              const sc = Math.round(col - (k * dx) / r2 / ASPECT - 0.5);
+              const sr = Math.round(row - (k * dy) / r2 - 0.5);
+              if (sc < 0 || sc >= cols || sr < 0 || sr >= rows) continue;
+              j = sr * cols + sc;
+              if (cap[j]) continue;
+            }
+          }
+          const L = (lon[j] + DRIFT * t) % 1;
           const gx = L * 900;
-          const gy = lat[i] * 450;
+          const gy = lat[j] * 450;
           const sx = Math.floor(gx);
           const sy = Math.floor(gy);
           const hsh = hash(sx, sy);
@@ -187,6 +219,8 @@ export default function AsciiHole({ className = '' }: { className?: string }) {
       cleanup = () => {
         ro.disconnect();
         io.disconnect();
+        window.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerleave', onLeave);
       };
     })();
 

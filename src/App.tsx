@@ -6,6 +6,7 @@ import Cursor from './Cursor';
 import { Markdown } from './Markdown';
 import Memories from './Memories';
 import RustyPlayer from './RustyPlayer';
+import WorkIndex from './WorkIndex';
 import { commits, links, roles, tempera, upstream } from './content';
 import { useScramble, useSfTime } from './hooks';
 import { formatDate, paperDocs, posts, type Doc } from './md';
@@ -152,9 +153,9 @@ function Header() {
           jaden fix
         </a>
         <nav className="hidden items-center gap-6 text-dim md:flex">
-          <NavLink href="#experience" label="experience" />
           <NavLink href="#research" label="research" />
           <NavLink href="#projects" label="projects" />
+          <NavLink href="#experience" label="experience" />
           <NavLink href="#/blog" label="writing" />
         </nav>
         <div className="flex items-center gap-4 text-faint">
@@ -224,43 +225,55 @@ function Hero() {
           {stage >= 1 && <Typed text="software engineer · san francisco" speed={38} cursor onDone={() => setStage(2)} />}
           {stage < 1 && <span className="invisible">software engineer · san francisco</span>}
         </div>
-        <motion.div initial={{ opacity: 0 }} animate={stage >= 2 ? { opacity: 1 } : {}} transition={{ duration: 1.4, delay: 0.3 }} className="mt-14 flex justify-center">
-          <a href="#rusty" className="label animate-breathe">
-            scroll ↓
-          </a>
-        </motion.div>
+        <motion.p initial={{ opacity: 0 }} animate={stage >= 2 ? { opacity: 1 } : {}} transition={{ duration: 1.4 }} className="mt-6 text-[13px] text-dim">
+          platform &amp; applied ai at <a className="link-u text-bone" href="https://www.afterquery.com" target="_blank" rel="noreferrer">afterquery</a> · previously scale ai, roe (yc)
+        </motion.p>
+        <motion.p initial={{ opacity: 0 }} animate={stage >= 2 ? { opacity: 1 } : {}} transition={{ duration: 1.4, delay: 0.6 }} className="mt-10 text-[11px] text-faint">
+          move your pointer over the sky: it bends the light too
+        </motion.p>
       </div>
     </section>
   );
 }
 
-function Featured() {
+function Index() {
   return (
-    <section id="rusty" className="page">
-      <Rule />
-      <div className="grid gap-10 lg:grid-cols-12 lg:items-end">
-        <div className="lg:col-span-4">
-          <div className="label">
-            <span className="text-phos">now playing</span> · rusty
-          </div>
-          <h2 className="display mt-4 text-[52px] leading-none sm:text-[64px]">
-            <Typed text="A coding agent, working." speed={45} />
-          </h2>
-          <p className="mt-6 text-[13px] leading-[1.85] text-dim">
-            rusty is a coding agent I wrote in Rust: one static binary, about 400 tests. A goal only closes when a pinned check passes, and the
-            permission classifier reads what <span className="text-bone">npm run</span>, heredocs and <span className="text-bone">ssh</span> will actually
-            execute before deciding whether to ask. These are real sessions.
-          </p>
-          <div className="mt-6 flex gap-2">
-            <Chip name="github" href="https://github.com/jadenfix/rusty" />
-          </div>
-          <p className="mt-6 text-[11px] text-faint">← → to switch sessions</p>
+    <section id="work" className="page mt-16">
+      <div className="mb-5 flex items-baseline justify-between">
+        <div className="label">
+          <span className="text-phos">index</span> · papers and projects, each with a live demo below
         </div>
-        <Reveal className="lg:col-span-8">
-          <RustyPlayer auto />
-        </Reveal>
+        <div className="hidden text-[11px] text-faint sm:block">press / to jump</div>
       </div>
+      <WorkIndex />
     </section>
+  );
+}
+
+function Rusty() {
+  return (
+    <div id="rusty" className="grid scroll-mt-24 gap-10 lg:grid-cols-12 lg:items-end">
+      <div className="lg:col-span-4">
+        <div className="label">coding agent · rust</div>
+        <h3 className="display mt-3 text-[44px] leading-none sm:text-[52px]">
+          <a className="link-u" href="https://github.com/jadenfix/rusty" target="_blank" rel="noreferrer">
+            rusty
+          </a>
+        </h3>
+        <p className="mt-5 text-[13px] leading-[1.85] text-dim">
+          A coding agent I wrote in Rust: one static binary, about 400 tests. A goal only closes when a pinned check passes, and the permission
+          classifier reads what <span className="text-bone">npm run</span>, heredocs and <span className="text-bone">ssh</span> will actually execute before
+          deciding whether to ask. These are real sessions.
+        </p>
+        <div className="mt-5 flex items-center gap-4">
+          <Chip name="github" href="https://github.com/jadenfix/rusty" />
+          <span className="text-[11px] text-faint">← → to switch sessions</span>
+        </div>
+      </div>
+      <div className="lg:col-span-8">
+        <RustyPlayer auto />
+      </div>
+    </div>
   );
 }
 
@@ -268,7 +281,7 @@ function Experience() {
   return (
     <section id="experience" className="page">
       <Rule />
-      <SectionHead n="01" label="experience" title="Where I’ve worked" />
+      <SectionHead n="03" label="experience" title="Where I’ve worked" />
       <div className="mt-12 md:grid md:grid-cols-12">
         <ol className="md:col-span-9 md:col-start-4">
           {roles.map((r, i) => (
@@ -306,7 +319,7 @@ function Experience() {
 function PaperBlock({ p, i }: { p: Paper; i: number }) {
   return (
     <Reveal className={i === 0 ? 'mt-14' : 'mt-28'}>
-      <div className="label">{p.kind}</div>
+      <div id={p.slug} className="label scroll-mt-24">{p.kind}</div>
       <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3">
         <h3 className="display max-w-[760px] text-[32px] leading-tight sm:text-[40px]">
           <a href={`#/papers/${p.slug}`} className="link-u">
@@ -332,7 +345,7 @@ function Research() {
   return (
     <section id="research" className="page">
       <Rule />
-      <SectionHead n="02" label="research" title="Research">
+      <SectionHead n="01" label="research" title="Research">
         Credit assignment for agents, regimes in markets, and how to tell a real gain from noise. Every figure here is live.
       </SectionHead>
       {papers.map((p, i) => (
@@ -394,11 +407,14 @@ function Projects() {
   return (
     <section id="projects" className="page">
       <Rule />
-      <SectionHead n="03" label="projects" title="Things I’ve built" />
+      <SectionHead n="02" label="projects" title="Things I’ve built" />
       <div className="mt-14 space-y-28">
+        <Reveal>
+          <Rusty />
+        </Reveal>
         {projects.map((p) => (
           <Reveal key={p.id}>
-            <div id={p.id} className="mb-7 grid gap-4 lg:grid-cols-12">
+            <div id={p.id} className="mb-7 grid scroll-mt-24 gap-4 lg:grid-cols-12">
               <div className="lg:col-span-4">
                 <div className="label">{p.tag}</div>
                 <h3 className="display mt-3 text-[40px] leading-none">
@@ -581,10 +597,10 @@ function Home() {
   return (
     <main>
       <Hero />
-      <Featured />
-      <Experience />
+      <Index />
       <Research />
       <Projects />
+      <Experience />
       <Writing />
       <Tempera />
       <OpenSource />
