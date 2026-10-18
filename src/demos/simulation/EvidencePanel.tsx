@@ -155,8 +155,8 @@ export default function EvidencePanel({ beacon, verified, playing, visible, redu
         is the simulation. In [ same law ] it is your browser&apos;s CSPRNG with the same fair law, so P_sim = P_base and the exact Bayes factor between them is 1 on every
         data set (claim ST-T01); this composite test can only wander, drifting down like -(1/2) ln n, and by Ville&apos;s inequality it reaches ln 100 with
         probability at most 1%. In [ biased ] the simulator emits ones with probability 0.60; in [ coarsened ] the same simulator is seen through a channel that flips
-        each bit with probability 0.2, which contracts the bias by 1 - 2(0.2) (ST-M14, ST-M50). Dashed: the exact bound E[log BF] &ge; n KL(q || 1/2) - (1/2) ln n - ln 2
-        (ST-T185); a single run scatters around its mean. Math ported from simulation-theory src/simtheory/real_data.py and checked against the repo&apos;s numbers. A
+        each bit with probability 0.2, which contracts the bias by 1 - 2(0.2) (ST-M14, ST-M83). Dashed: the exact bound E[log BF] &ge; n KL(q || 1/2) - (1/2) ln n - ln 2
+        (ST-T271); a single run scatters around its mean. Math ported from simulation-theory src/simtheory/real_data.py and checked against the repo&apos;s numbers. A
         restricted simulator is caught; a faithful one is not, and fair-looking bits say nothing about whether the world is simulated.
       </p>
     </div>

@@ -1,5 +1,5 @@
 // Evidence engine: two bit streams (real NIST beacon bits, and a simulated source) and their running
-// KT log Bayes factors. Mirrors simulation-theory claims ST-T01, ST-T185, ST-M50.
+// KT log Bayes factors. Mirrors simulation-theory claims ST-T01, ST-T271, ST-M83.
 import { csprngUniform, type Beacon } from './data';
 import { KTEvidence, VILLE_THRESHOLD, coarsened } from './math';
 

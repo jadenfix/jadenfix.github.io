@@ -1,7 +1,7 @@
 // Faithful ports of jadenfix/simulation-theory, branch `sharpen`.
 //   src/simtheory/real_data.py        (Delft CHSH summary, p-value, CHSH-disk point, KT Bayes factor, coarsening)
 //   src/simtheory/quantum_phase_geometry.py   canonical_chsh_cartesian_tv (claim ST-T12)
-// Claims mirrored: ST-T01, ST-T08, ST-T12, ST-M14, ST-T185, ST-M50, ST-F32, ST-F33, ST-F34.
+// Claims mirrored: ST-T01, ST-T08, ST-T12, ST-M14, ST-T271, ST-M83, ST-F50, ST-F51, ST-F52.
 // Pure functions only, so the node validation script can import this file directly.
 
 export const LN2 = Math.log(2);
@@ -20,7 +20,7 @@ export function bernoulliKL(p: number, q: number): number {
   return total;
 }
 
-/** A Bernoulli(p) bit seen through a binary symmetric channel with flip f: bias contracts by 1 - 2f (ST-M14, ST-M50). */
+/** A Bernoulli(p) bit seen through a binary symmetric channel with flip f: bias contracts by 1 - 2f (ST-M14, ST-M83). */
 export function coarsened(p: number, flip: number): number {
   return flip + (1 - 2 * flip) * p;
 }
@@ -42,7 +42,7 @@ export class KTEvidence {
   }
 }
 
-/** Exact lower bound n KL(q || 1/2) - (1/2) ln n - ln 2 on E_q[log BF_n] (ST-T185). */
+/** Exact lower bound n KL(q || 1/2) - (1/2) ln n - ln 2 on E_q[log BF_n] (ST-T271). */
 export function ktLowerBound(n: number, q: number): number {
   if (n < 1) return 0;
   return n * bernoulliKL(q, 0.5) - 0.5 * Math.log(n) - LN2;
@@ -143,7 +143,7 @@ export class ChshTally {
 }
 
 /**
- * Equal-weight least-squares point q = (x, y) on the canonical CHSH disk (ST-F33).
+ * Equal-weight least-squares point q = (x, y) on the canonical CHSH disk (ST-F51).
  * The Delft schedule is the canonical one with every setting difference shifted by pi, so
  * E00, E01, E10, E11 = r(-pi/4), r(pi/4), r(pi/4), r(3pi/4) with r(theta) = x cos(theta) + y sin(theta).
  */

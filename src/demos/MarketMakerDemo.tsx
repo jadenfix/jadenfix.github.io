@@ -1,139 +1,121 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Ladder, PriceChart, Trace } from './mm/charts';
-import { POLICY_LABEL } from './mm/theme';
-import { Recorder, WINDOW } from './mm/recorder';
-import { prepareActor, type ActorFile } from './mm/actor';
-import { decodeSlice, LOT, type PolicyName, type SliceFile } from './mm/twin';
-import type { MarketEvent } from './mm/env';
+import { QuoteChart, Trace } from './mm/quotes';
+import { loadCore, loadSlice, Session, SYMBOLS, type Index, type Side, type Sym } from './mm/session';
+import type { AgentFile } from './mm/replay';
 import { useOnScreen, useReducedMotion } from './orbit/hooks';
 
-const STEP_MS = 260;
-const DATA = `${import.meta.env.BASE_URL}data/mm/`;
+const STEP_MS = 250; // one market second per frame: 4x real time
 
 const BTN = 'whitespace-nowrap py-1 transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-phos';
 
-const signed = (v: number, d = 0) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(d)}`;
+const signed = (v: number, d = 2) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(d)}`;
+const ci = (c: [number, number], d = 2) => `[${signed(c[0], d)}, ${signed(c[1], d)}]`;
+const short = (s: Sym) => s.slice(0, 3).toLowerCase();
+const clock = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
 
-interface Loaded {
-  actor: ActorFile;
-  file: SliceFile;
-  slices: MarketEvent[][];
-}
-
-let cache: Promise<Loaded> | null = null;
-function loadData(): Promise<Loaded> {
-  cache ??= Promise.all([
-    fetch(`${DATA}td3-actor.json`).then((r) => r.json() as Promise<ActorFile>),
-    fetch(`${DATA}ltc-slices.json`).then((r) => r.json() as Promise<SliceFile>),
-  ]).then(([actor, file]) => ({ actor: prepareActor(actor), file, slices: file.slices.map((s) => decodeSlice(s.rows)) }));
-  return cache;
-}
-
-function fresh(d: Loaded, k: number) {
-  const r = new Recorder(d.slices[k], d.actor, d.file.quote_bps);
-  r.advance(WINDOW);
-  return r;
-}
-
-interface EvalRow {
-  pnl_usdt_mean: number;
-  pnl_usdt_total: number;
-  sharpe_pnl: number;
-  mean_abs_inv_lots: number;
-  fills_mean: number;
+function verdict(diff: number, c: [number, number], p: number) {
+  const lead = diff >= 0 ? 'agent' : 'baseline';
+  if (c[0] > 0 && p < 0.05) return 'the agent beats the best baseline on this instrument';
+  if (c[1] < 0 && p < 0.05) return 'the best baseline beats the agent on this instrument';
+  if (c[0] > 0 || c[1] < 0) return `the ${lead} is ahead and the bootstrap interval excludes zero, but the day-level sign-flip test is not significant, so this is not a reliable difference`;
+  return `no significant difference: the ${lead} is ahead by ${Math.abs(diff).toFixed(2)} USDT/h but the interval spans zero`;
 }
 
 export default function MarketMakerDemo() {
   const wrapRef = useRef<HTMLDivElement>(null);
   const { visible, seen } = useOnScreen(wrapRef, '300px');
   const reduce = useReducedMotion();
-  const [data, setData] = useState<Loaded | null>(null);
+  const [core, setCore] = useState<{ index: Index; agent: AgentFile } | null>(null);
   const [failed, setFailed] = useState(false);
-  const [slice, setSlice] = useState(0);
-  const [rec, setRec] = useState<Recorder | null>(null);
+  const [sym, setSym] = useState<Sym>('BTCUSDT');
+  const [sliceK, setSliceK] = useState(0);
+  const [sess, setSess] = useState<Session | null>(null);
   const [tick, setTick] = useState(0);
-  const [view, setView] = useState<PolicyName>('td3');
   const [userPlaying, setUserPlaying] = useState<boolean | null>(null);
   const playing = userPlaying ?? !reduce;
-  const running = playing && visible && rec !== null;
+  const running = playing && visible && sess !== null;
 
   useEffect(() => {
-    if (!seen || data) return;
+    if (!seen || core) return;
     let live = true;
-    loadData().then(
-      (d) => {
+    loadCore().then(
+      (c) => live && setCore(c),
+      () => live && setFailed(true),
+    );
+    return () => {
+      live = false;
+    };
+  }, [seen, core]);
+
+  const info = core?.index.instruments[sym];
+  useEffect(() => {
+    if (!core || !info) return;
+    let live = true;
+    const f = info.files[sliceK % info.files.length];
+    loadSlice(f.file).then(
+      (s) => {
         if (!live) return;
-        setData(d);
-        setRec(fresh(d, 0));
+        const next = new Session(s, core.agent, info.baseline);
+        next.advance(1);
+        setSess(next);
+        setTick(0);
       },
       () => live && setFailed(true),
     );
     return () => {
       live = false;
     };
-  }, [seen, data]);
+  }, [core, info, sliceK]);
 
   useEffect(() => {
-    if (!running || !rec || !data) return;
+    if (!running || !sess || !info) return;
     const id = window.setInterval(() => {
-      if (rec.done) {
-        // slice finished: move on to the next recorded slice
-        const next = (slice + 1) % data.slices.length;
-        setSlice(next);
-        setRec(fresh(data, next));
+      if (sess.done) {
+        setSliceK((k) => (k + 1) % info.files.length);
         return;
       }
-      rec.advance(1);
+      sess.advance(1);
       setTick((t) => t + 1);
     }, STEP_MS);
     return () => window.clearInterval(id);
-  }, [running, rec, data, slice]);
+  }, [running, sess, info]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const frame = useMemo(() => rec?.frame(view) ?? null, [rec, view, tick]);
+  const frame = useMemo(() => (sess ? { history: sess.history.slice(), stats: sess.stats(), step: sess.step } : null), [sess, tick]);
 
-  const other: PolicyName = view === 'fixed' ? 'td3' : 'fixed';
-  const s = frame?.stats[view];
-  const last = frame?.history[frame.history.length - 1]?.[view];
-  const bps = data?.file.quote_bps ?? 0;
-  const ev = data?.file.eval as { episodes: number; td3: EvalRow; fixed: EvalRow } | undefined;
-
-  const readouts: [string, string, string, boolean][] = frame && s
-    ? [
-        ['inventory ltc', signed(s.inv, 1), `${POLICY_LABEL[other]}: ${signed(frame.stats[other].inv, 1)}`, true],
-        ['pnl usdt', signed(s.pnl, 2), `${POLICY_LABEL[other]}: ${signed(frame.stats[other].pnl, 2)}`, false],
-        ['agent fills', String(s.fills), `quote size ${(10 * LOT).toFixed(0)} ltc per side`, false],
-        ['quotes', last?.bid != null && last?.ask != null ? `${last.bid.toFixed(2)} / ${last.ask.toFixed(2)}` : '–', `mid ${frame.mid?.toFixed(3) ?? '–'}`, false],
-      ]
-    : [
-        ['inventory ltc', '–', '', true],
-        ['pnl usdt', '–', '', false],
-        ['agent fills', '–', '', false],
-        ['quotes', '–', '', false],
-      ];
-
-  const nextSlice = () => {
-    if (!data) return;
-    const next = (slice + 1) % data.slices.length;
-    setSlice(next);
-    setRec(fresh(data, next));
-    setTick(0);
+  const pick = (s: Sym) => {
+    if (s === sym) return;
+    setSess(null);
+    setSym(s);
+    setSliceK(0);
   };
   const stepOnce = () => {
-    if (!rec) return;
-    rec.advance(1);
+    if (!sess || sess.done) return;
+    sess.advance(1);
     setTick((t) => t + 1);
   };
-  const startUtc = data?.file.slices[slice]?.start_utc;
-  const usd = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(2)}`;
+  const decimals = sess ? Math.max(0, Math.round(-Math.log10(sess.slice.tick))) : 2;
+  const last = frame?.history[frame.history.length - 1];
+  const bpsFrom = (v: number | null) => (v === null || !last ? '—' : `${signed(((v - last.mid) / last.mid) * 1e4, 1)}`);
+  const T = info?.test;
+  const files = info?.files ?? [];
+  const label = info?.baseline.label ?? 'best baseline';
+
+  const rows: [string, (s: Side) => string][] = [
+    ['mean pnl / hour', (s) => `${signed(s.pnl_mean)} ${ci(s.pnl_mean_ci)}`],
+    ['sharpe-like / hour', (s) => `${signed(s.sharpe)} ${ci(s.sharpe_ci)}`],
+    ['fills / hour', (s) => s.fills_per_hour.toFixed(1)],
+    ['mean |inventory|', (s) => `${s.mean_abs_inv_quotes.toFixed(2)} q`],
+    ['5 s markout', (s) => (Number.isFinite(s.markout_5s_bps) ? `${signed(s.markout_5s_bps, 2)} bps` : '—')],
+  ];
 
   return (
     <div ref={wrapRef} className="font-mono text-bone" style={{ opacity: seen ? 1 : 0, transition: reduce ? undefined : 'opacity 1s ease' }}>
       <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-1 text-[12px]">
-        <div className="flex gap-4" role="group" aria-label="Quoting policy">
-          {(['td3', 'fixed'] as const).map((p) => (
-            <button key={p} type="button" aria-pressed={view === p} onClick={() => setView(p)} className={`${BTN} ${view === p ? 'text-phos' : 'text-dim hover:text-bone'}`}>
-              [ {POLICY_LABEL[p]} ]
+        <div className="flex gap-3" role="group" aria-label="Instrument">
+          {SYMBOLS.map((s) => (
+            <button key={s} type="button" aria-pressed={sym === s} onClick={() => pick(s)} className={`${BTN} ${sym === s ? 'text-phos' : 'text-dim hover:text-bone'}`}>
+              [ {short(s)} ]
             </button>
           ))}
         </div>
@@ -141,84 +123,107 @@ export default function MarketMakerDemo() {
           <button type="button" aria-pressed={!playing} onClick={() => setUserPlaying(!playing)} className={`${BTN} text-dim hover:text-bone`}>
             [ {playing ? 'pause' : 'play'} ]
           </button>
-          <button type="button" onClick={stepOnce} disabled={playing || !rec} className={`${BTN} ${playing || !rec ? 'text-faint' : 'text-dim hover:text-bone'}`}>
+          <button type="button" onClick={stepOnce} disabled={playing || !sess} className={`${BTN} ${playing || !sess ? 'text-faint' : 'text-dim hover:text-bone'}`}>
             [ step ]
-          </button>
-          <button type="button" onClick={nextSlice} disabled={!data} className={`${BTN} text-dim hover:text-bone`}>
-            [ next slice ]
           </button>
         </div>
       </div>
+      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px]" role="group" aria-label="Held-out slice">
+        <span className="text-faint">held-out slice</span>
+        {files.map((f, k) => (
+          <button key={f.file} type="button" aria-pressed={sliceK === k} onClick={() => setSliceK(k)} className={`${BTN} ${sliceK === k ? 'text-bone' : 'text-dim hover:text-bone'}`}>
+            [ {f.week} · {f.start_utc.toLowerCase()} ]
+          </button>
+        ))}
+      </div>
 
-      <div className="mt-3 grid grid-cols-[minmax(0,1fr)] border border-line bg-void md:grid-cols-[300px_minmax(0,1fr)]">
-        <div className="relative h-[284px] border-b border-line px-3 py-3 md:border-b-0 md:border-r">
-          <div className="pointer-events-none absolute left-3 top-2 text-[10px] lowercase tracking-[0.14em] text-faint">ltcusdt fifo book · tick 0.01</div>
-          <div className="h-full pt-3">
-            {frame ? (
-              <Ladder rows={frame.ladder} hot={frame.hot} mid={frame.mid} spread={frame.spread} rowH={17} />
+      <div className="mt-2 border border-line bg-void">
+        <div className="relative h-[200px] px-3 pb-2 pt-6 sm:h-[230px]">
+          <div className="pointer-events-none absolute left-3 right-3 top-2 flex flex-wrap justify-between gap-x-3 text-[10px] lowercase tracking-[0.12em] text-faint">
+            <span>
+              {short(sym)}usdt perp · <span className="text-phos">— agent</span> · <span className="text-ice">- - {label}</span> · ● bought ○ sold
+            </span>
+            {sess && (
+              <span className="tabular-nums tracking-normal">
+                {clock(sess.step)} / {clock(sess.total)}
+              </span>
+            )}
+          </div>
+          <div className="h-full">
+            {frame && frame.history.length ? (
+              <QuoteChart history={frame.history} decimals={decimals} />
             ) : (
               <div className="flex h-full items-center justify-center text-[11px] text-faint">{failed ? 'replay data unavailable' : 'loading recorded flow…'}</div>
             )}
           </div>
         </div>
-        <div className="relative h-[170px] px-3 pb-2 pt-6 md:h-[284px]">
-          <div className="pointer-events-none absolute left-3 top-2 flex gap-3 text-[10px] lowercase tracking-[0.14em] text-faint">
-            <span>last {WINDOW} events</span>
-            <span className="hidden sm:inline">
-              <span className="text-phos">●</span> bought <span className="text-phos">○</span> sold
-            </span>
-            {startUtc && <span className="hidden lg:inline">slice from {startUtc.toLowerCase()}</span>}
-          </div>
-          <div className="h-full">{frame && <PriceChart history={frame.history} view={view} />}</div>
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] border-t border-line">
+          <div className="h-[86px] border-r border-line px-3 py-2">{frame && <Trace history={frame.history} field="inv" label="inventory (quotes)" fmt={(v) => signed(v, 1)} />}</div>
+          <div className="h-[86px] px-3 py-2">{frame && <Trace history={frame.history} field="pnl" label="pnl usdt" fmt={(v) => signed(v, 2)} />}</div>
         </div>
       </div>
 
-      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] border-x border-b border-line md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_300px]">
-        <div className="h-[96px] border-r border-line px-3 py-2 md:h-[112px]">
-          {frame && <Trace history={frame.history} view={view} field="inv" label="inventory" fmt={(v) => signed(v, 1)} />}
-        </div>
-        <div className="h-[96px] px-3 py-2 md:h-[112px] md:border-r md:border-line">
-          {frame && <Trace history={frame.history} view={view} field="pnl" label="pnl" fmt={(v) => signed(v, 2)} />}
-        </div>
-        <div className="hidden h-[112px] overflow-hidden px-3 py-2 text-[10.5px] md:block" aria-label="Recent trades">
-          <div className="mb-1 text-[10px] lowercase tracking-[0.14em] text-dim">tape</div>
-          {frame?.prints.map((p) => (
-            <div key={p.key} className={`flex justify-between tabular-nums leading-[1.45] ${p.agent ? 'text-phos' : 'text-faint'}`}>
-              <span>{p.agent ? `agent ${p.agent}` : `${p.aggressor} sweeps`}</span>
-              <span>
-                {p.qty.toFixed(1)} @ {p.price.toFixed(2)}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <dl className="grid grid-cols-2 border-x border-b border-line sm:grid-cols-4">
-        {readouts.map(([k, v, sub, accent], i) => (
-          <div key={k} className={`px-3 py-3 sm:px-4 ${i % 2 === 1 ? 'border-l border-line' : ''} ${i >= 2 ? 'border-t border-line sm:border-t-0' : ''} ${i === 2 ? 'sm:border-l' : ''}`}>
-            <dt className="text-[10px] lowercase tracking-[0.14em] text-dim">{k}</dt>
-            <dd className={`mt-1 font-serif text-[24px] leading-none tabular-nums ${accent ? 'text-phos' : 'text-bone'}`}>{v}</dd>
-            <dd className="mt-1 truncate text-[10px] text-faint">{sub || ' '}</dd>
+      <dl className="grid grid-cols-2 border-x border-b border-line text-[11px] sm:grid-cols-4">
+        {(
+          [
+            ['agent quotes, bps from mid', last ? `${bpsFrom(last.agent.bid)} / ${bpsFrom(last.agent.ask)}` : '—', true],
+            ['baseline quotes, bps from mid', last ? `${bpsFrom(last.base.bid)} / ${bpsFrom(last.base.ask)}` : '—', false],
+            ['agent pnl · fills · inv', frame ? `${signed(frame.stats.agent.pnl)} · ${frame.stats.agent.fills} · ${signed(frame.stats.agent.inv, 1)}` : '—', true],
+            ['baseline pnl · fills · inv', frame ? `${signed(frame.stats.base.pnl)} · ${frame.stats.base.fills} · ${signed(frame.stats.base.inv, 1)}` : '—', false],
+          ] as [string, string, boolean][]
+        ).map(([k, v, accent], i) => (
+          <div key={k} className={`min-w-0 px-3 py-2 ${i % 2 === 1 ? 'border-l border-line' : ''} ${i >= 2 ? 'border-t border-line sm:border-t-0' : ''} ${i === 2 ? 'sm:border-l' : ''}`}>
+            <dt className="truncate text-[10px] lowercase tracking-[0.12em] text-dim">{k}</dt>
+            <dd className={`mt-1 truncate font-serif text-[18px] leading-none tabular-nums ${accent ? 'text-phos' : 'text-ice'}`}>{v}</dd>
           </div>
         ))}
       </dl>
 
-      <p className="mt-5 border-t border-line pt-4 text-[11px] leading-[1.8] text-faint">
-        Recorded flow: Binance LTCUSDT perpetual on 2024-03-30 (bookTicker and aggTrades from data.binance.vision, CC BY-NC-SA 4.0), turned into the
-        repo&apos;s add/market/cancel rows; only the top of book is recorded, so deeper levels are ones the touch has visited. The book and accounting are
-        a TypeScript port of lob_simulator.py and market_env.py. &lsquo;td3 · trained&rsquo; is the repo&apos;s own TD3 agent and training loop, run for 400k
-        steps on 00:00 to 16:00 UTC with the repo&apos;s reward (PnL change minus an inventory penalty); its actor network runs here, in the browser, on the
-        same 52 features the Python env builds, and reproduces the Python episodes fill for fill. &lsquo;fixed midpoint&rsquo; is the repo&apos;s
-        fixed-midpoint-quotes policy at {bps} bps, the setting that did best on the validation hours. Both replay the identical held-out stream.
-        {ev && (
-          <>
-            {' '}
-            Over {ev.episodes} held-out slices (19:00 to 24:00 UTC) td3 averaged {usd(ev.td3.pnl_usdt_mean)} USDT per slice against {usd(ev.fixed.pnl_usdt_mean)}{' '}
-            for fixed midpoint (Sharpe-like {ev.td3.sharpe_pnl.toFixed(2)} vs {ev.fixed.sharpe_pnl.toFixed(2)}, mean |inventory| {(ev.td3.mean_abs_inv_lots * LOT).toFixed(1)} vs{' '}
-            {(ev.fixed.mean_abs_inv_lots * LOT).toFixed(1)} LTC), so {ev.td3.pnl_usdt_mean > ev.fixed.pnl_usdt_mean ? 'the trained policy comes out ahead' : 'the trained policy does not beat the tuned fixed quotes yet'}. No
-            fees, latency or exchange; not evidence of live performance.
-          </>
-        )}
+      {T && info && (
+        <div className="mt-4 text-[11px]" aria-label="Held-out evaluation">
+          <div className="text-[10px] lowercase tracking-[0.14em] text-dim">
+            held-out test · {short(sym)} · {T.days} days, {T.episodes} hours{T.seen_in_training ? '' : ' · never seen in training'}
+          </div>
+          <div className="mt-1 overflow-x-auto">
+            <table className="w-full min-w-[320px] border-collapse tabular-nums">
+              <thead>
+                <tr className="text-left text-[10px] lowercase text-faint">
+                  <th className="py-1 pr-2 font-normal" />
+                  <th className="py-1 pr-2 font-normal text-phos">agent</th>
+                  <th className="py-1 font-normal text-ice">{label}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(([k, f]) => (
+                  <tr key={k} className="border-t border-line">
+                    <td className="py-1 pr-2 text-dim">{k}</td>
+                    <td className="py-1 pr-2 text-bone">{f(T.agent)}</td>
+                    <td className="py-1 text-bone">{f(T.baseline)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2 leading-[1.7] text-bone">
+            agent − baseline: {signed(T.diff_mean)} USDT/h, 95% day-block bootstrap CI {ci(T.diff_ci95)}, sign-flip p = {T.p_sign_flip.toFixed(3)}: {verdict(T.diff_mean, T.diff_ci95, T.p_sign_flip)}.
+            {core && (
+              <span className="text-dim">
+                {' '}
+                All four instruments pooled: {signed(core.index.pooled.vs.diff_mean)} USDT/h {ci(core.index.pooled.vs.diff_ci95)}, p = {core.index.pooled.vs.p_sign_flip.toFixed(3)}.
+              </span>
+            )}
+          </p>
+        </div>
+      )}
+
+      <p className="mt-4 border-t border-line pt-3 text-[11px] leading-[1.8] text-faint">
+        Recorded flow: Binance USD-M perpetuals (bookTicker and aggTrades from data.binance.vision, CC BY-NC-SA 4.0), a calm, a median and a volatile week of
+        2023–24; each week trains on days 1–4, validates on day 5 and tests on days 6–7. The agent is a seed ensemble of small actor networks (DRL4MM v2) that
+        sets a half-spread and a skew around the microprice once a second from order-flow, volatility and inventory features; it trained on BTC, ETH and LTC
+        only. The baseline is the one that did best on the validation days for this instrument, chosen from a tuned fixed half-spread, Avellaneda–Stoikov,
+        the repo&apos;s fixed-midpoint quotes and the previous TD3. Both quote ~1,000 USDT per side on the identical replay, in a TypeScript port of the
+        Python queue-position simulator that reproduces it fill for fill: 100 ms latency, our orders join the back of the queue, the market does not react
+        to us, inventory capped at five quotes and liquidated across the spread at the end. No fees; not evidence of live performance.
       </p>
     </div>
   );

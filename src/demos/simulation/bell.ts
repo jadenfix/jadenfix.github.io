@@ -1,4 +1,4 @@
-// Bell replay engine: the 245 valid Delft 2015 trials in recorded order (claims ST-F32, ST-F33), and a local
+// Bell replay engine: the 245 valid Delft 2015 trials in recorded order (claims ST-F50, ST-F51), and a local
 // hidden-variable model answering the very same random settings (the classical stand-in; win probability 3/4).
 import { csprngUniform } from './data';
 import { ChshTally, diskCovariance, diskPoint, lhvOutcome, type BellTrial } from './math';

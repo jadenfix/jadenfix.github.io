@@ -141,7 +141,7 @@ export default function BellPanel({ delft, playing, visible, reduce, api }: Prop
         expected S is exactly 2 and it cannot do better, but a 245-trial run scatters by about ±0.2, which is why the test is the p-value and not S alone. Left: the
         canonical CHSH disk of visibility-phase quantum states (claim ST-T12), where x = S / 2√2; the red chord is S = 2, the green point is Tsirelson&apos;s 2√2,
         and ellipses are 1σ. Predictive distance from a point to the chord is (S - 2) / 8 per trial{ready && !Number.isNaN(real.px[i]) ? ` (now ${chordTV([real.px[i], real.py[i]]).toFixed(3)} for delft)` : ''}. Recomputed
-        values match the paper: S = {pub.S.toFixed(2)} ± {pub.S_error.toFixed(2)}, p = {pub.p_value} (ST-F32, ST-F33, simulation-theory real_data.py). A Bell violation
+        values match the paper: S = {pub.S.toFixed(2)} ± {pub.S_error.toFixed(2)}, p = {pub.p_value} (ST-F50, ST-F51, simulation-theory real_data.py). A Bell violation
         rules out local classical simulation of these correlations; it is not evidence for or against a simulated world.
       </p>
     </div>

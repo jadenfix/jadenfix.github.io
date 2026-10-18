@@ -1,6 +1,6 @@
 // simulation-theory, live: two instruments built on the repo's real-data checks (branch `sharpen`).
-//   [ evidence ]  is a stream simulated? KT Bayes factor on NIST beacon bits vs a simulated source (ST-T01, ST-T185, ST-M50, ST-F34)
-//   [ bell test ] replay of the Delft 2015 loophole-free Bell trials vs a local hidden-variable model (ST-F32, ST-F33, ST-T12)
+//   [ evidence ]  is a stream simulated? KT Bayes factor on NIST beacon bits vs a simulated source (ST-T01, ST-T271, ST-M83, ST-F52)
+//   [ bell test ] replay of the Delft 2015 loophole-free Bell trials vs a local hidden-variable model (ST-F50, ST-F51, ST-T12)
 // Fixed height: 600px at every width.
 import { useEffect, useRef, useState } from 'react';
 import { useOnScreen, useReducedMotion } from './orbit/hooks';
