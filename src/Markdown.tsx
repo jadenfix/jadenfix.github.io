@@ -1,8 +1,8 @@
 import { Fragment, type ReactNode } from 'react';
 
 // Renders the Markdown subset the notes and paper pages use: headings,
-// paragraphs, emphasis, code, links, lists, quotes and images. No HTML passes
-// through.
+// paragraphs, emphasis, code, links, lists, quotes, tables and images. No HTML
+// passes through.
 
 function inline(text: string, key = 0): ReactNode[] {
   const out: ReactNode[] = [];
@@ -78,6 +78,40 @@ export function Markdown({ source, compact = false }: { source: string; compact?
       );
       continue;
     }
+    if (line.startsWith('|')) {
+      const rows: string[][] = [];
+      while (i < lines.length && lines[i].startsWith('|')) {
+        const cells = lines[i++].trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
+        if (!cells.every((c) => /^:?-+:?$/.test(c))) rows.push(cells);
+      }
+      const [head, ...body] = rows;
+      // numbers line up on the right, words on the left
+      const num = head.map((_, c) => body.length > 0 && body.every((r) => /^[−\-+$]?[\d.,]+[%x]?$/.test(r[c] ?? '')));
+      const td = (c: number) => `px-3 py-1.5 ${num[c] ? 'text-right tabular-nums' : 'text-left'}`;
+      blocks.push(
+        <div key={k++} className="overflow-x-auto border border-line">
+          <table className="w-full border-collapse text-[12.5px] leading-[1.6]">
+            <thead>
+              <tr className="border-b border-line bg-panel text-faint">
+                {head.map((h, c) => (
+                  <th key={c} className={`font-normal ${td(c)}`}>{inline(h)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {body.map((r, j) => (
+                <tr key={j} className="border-b border-line/50 text-dim last:border-0">
+                  {r.map((cell, c) => (
+                    <td key={c} className={`${td(c)} ${c === 0 ? 'text-bone' : ''}`}>{inline(cell)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>,
+      );
+      continue;
+    }
     if (/^- /.test(line)) {
       const items: string[] = [];
       while (i < lines.length && /^- /.test(lines[i])) items.push(lines[i++].slice(2));
@@ -94,7 +128,7 @@ export function Markdown({ source, compact = false }: { source: string; compact?
       continue;
     }
     const buf: string[] = [];
-    while (i < lines.length && lines[i].trim() && !/^(## |```|> |- |!\[)/.test(lines[i])) buf.push(lines[i++]);
+    while (i < lines.length && lines[i].trim() && !/^(## |```|> |- |!\[|\|)/.test(lines[i])) buf.push(lines[i++]);
     blocks.push(
       <p key={k++} className={p}>
         {buf.map((b, j) => (

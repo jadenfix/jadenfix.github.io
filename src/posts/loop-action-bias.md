@@ -1,40 +1,50 @@
 ---
 title: Loop-action bias
 date: 2026-04-08
-summary: Outcome-only credit can teach an agent that stalling is as good as acting, and the environment already has the signal that fixes it.
-read: 3 min
+summary: Pay every step for how the episode ended and an agent learns that rattling the handle is as good as opening the door. Econometrics has a name for the mistake and the environment already holds the fix.
+read: 6 min
 ---
 
-Outcome-only credit has a quiet bug that makes agents prefer stalling over acting.
+There's a door in front of an agent. It can try the key, which works three times out of four and otherwise leaves it standing where it was. Or it can rattle the handle, which never works and never fails. Nothing happens either way.
 
-I named it "loop-action bias." Here's how it works:
+Now train it the simplest way: when an episode ends well, give every step in that episode the same credit. Episodes where the agent eventually got through the door end well whether or not it rattled first. The failed key turn and the rattle both leave the agent in the same spot, both sit inside winning episodes, and both get paid. The rattle has one advantage. It never visibly fails. So the trained policy learns to rattle.
 
-Agent tries to unlock a door. Fails (75% success rate). Stays in same spot.
+I call this loop-action bias. On a controlled benchmark, a policy trained this way did worse than the prompted model it started from: 0.24 success against 0.79. That benchmark has hand-written verifier signals and stochastic tasks, so treat it as a clean demonstration of the mechanism and not a large-scale LLM training run.
 
-Agent rattles the door handle. Nothing happens. Stays in same spot.
+## The econometrics of a rattle
 
-To outcome-only scoring, these look IDENTICAL. Same state, same episode eventually succeeds.
+What went wrong has an old name. Training only on how episodes end, and mostly on the ones that ended well, is selecting on the outcome. It's the mistake of studying only companies that succeeded and concluding that whatever they all did, including the useless rituals, caused the success. Inside a winning episode the outcome doesn't vary with the action, so the data can't tell the key from the rattle. There's no derivative to estimate.
 
-So the agent learns: rattling = unlocking. Both get credit. But rattling is "safer" (never fails). So the trained policy rattles forever.
+The variable that would separate them is sitting right there, left out of the model: did the state change? The fix looks like first differencing, which is one of the first tricks you learn for panel data. Instead of scoring each step by the level of the final outcome, score it by what it changed.
 
-Result: the trained agent performs WORSE than the prompted baseline it started from. 0.24 vs 0.79.
+**Branch-aware scoring** adds credit when a verifier signal fires and subtracts it at dead ends. A failed key turn fires nothing, so it stops looking like a successful one, and a rattle that leaves the screen unchanged reads as a stall.
 
-To be precise about that number: it's a policy trained on outcome-only credit against the prompted baseline, on a controlled stochastic benchmark with hand-authored verifier signals. Not a large-scale LLM RL run.
+**Hindsight scoring** looks back over the finished episode and gives bonuses to steps it labels pivotal, enabling, or recovery.
 
-Fix: use the signals the environment already gives you. Room changed? Progress. Same observation 3x? Stalling. That's it.
+Each has a blind spot the other covers. Branch-aware scoring is weakest on enabling tasks, where a stall draws no dead-end penalty (0.857 success). Hindsight fails on cascade tasks, where the stall carries no label at all (0.286). Together they reach 1.00 on every diagnostic task family and on the stochastic benchmark.
 
-Measured on real ALFWorld with Claude Haiku 4.5 and Qwen2.5-7B: the signal separates 2.6x to 9.4x more states than outcome-only. Open source. (Run it on your own infra, or on GCP for under $5.)
+## Monte Carlo, but expensive
 
-## The longer version
+Outcome-only credit is what reinforcement learning people call a Monte Carlo return. Run the episode to the end, then pay every step the final score. I learned Monte Carlo the economist's way first: write down a model of a stock price or an interest rate, simulate ten thousand paths, average them. It works beautifully because paths are free and you wrote the model yourself.
 
-Outcome-only credit gives every step of a winning episode the same reward, so credit follows how the episode ended, not what each step changed.
+Agent training breaks both of those comforts. Nobody wrote down the model of the world, and every path costs real minutes and real money, so you get a handful of rollouts per task, not ten thousand. And Monte Carlo value estimates converge by visiting the same state over and over and averaging what followed. An agent's state is the whole transcript so far, which is the only way its process is Markov at all, and a transcript almost never repeats exactly. There's very little to average.
 
-**Branch-aware scoring** adds credit when a verifier signal fires and subtracts it at dead ends. A failed unlock fires nothing, so it stops looking like a successful one.
+Economists solving dynamic models hit a version of this decades ago, with continuous states you can never revisit exactly. The standard fix is to discretize: bin the state into a small grid and treat it as a Markov chain on the grid. "The same observation three times" is a crude version of that. It throws away the transcript and asks a coarser question, have I been here before, that the data can actually answer.
 
-**Hindsight scoring** looks back over the finished episode and gives bonuses to steps labeled pivotal, enabling, or recovery.
+## Not fooling myself
 
-Each has a blind spot the other covers. Branch-aware is weakest on enabling tasks, where a stall draws no dead-end penalty (0.857 success). Hindsight fails on cascade tasks, where the stall carries no label at all (0.286). Combined, they reach 1.00 on every diagnostic task family and on the stochastic benchmark.
+The obvious risk with any fix like this is overfitting to my own signals. I wrote the verifiers on the controlled benchmark, so of course methods built around them score well there. The guards I used are the ones econometrics and machine learning lean on everywhere.
 
-Real ALFWorld has no hand-written labels, so I pulled signals from the observation text: "You arrive at" is progress, an inventory change is stronger progress, "Nothing happens" on an unchanged screen is a dead end, the same observation three times is a stall. There I measured training signal, not trained policies. Outcome-only separated the preferred action at 13.3% of states for Haiku (30% task success) and 3.4% for Qwen2.5-7B (16.7%). Branch-aware separated 34.8% and 31.8%: 2.6x and 9.4x more. The weaker the model, the less outcome-only has to work with.
+The diagnostic task families were built to break one method at a time, the way you test a model out of sample instead of on the data that fit it. The two methods were combined because their failures don't overlap, which is the same reason an ensemble beats its members. And on real ALFWorld, which has no hand-written labels, I pulled the signals straight out of the observation text without tuning them on outcomes. "You arrive at" counts as progress, and an inventory change counts as stronger progress. "Nothing happens" on an unchanged screen is a dead end, and the same observation three times is a stall.
 
-[Paper](https://github.com/jadenfix/CreditAssignment/blob/main/paper/main.pdf) and [code](https://github.com/jadenfix/CreditAssignment). There's an interactive version in the [research section](/#research) of the home page.
+The usual training-time tools fit the same picture. The KL penalty that keeps a fine-tuned model near its starting point is shrinkage toward a prior, the same instinct as ridge regression. Early stopping is a held-out set watching over your shoulder.
+
+## What changed on real data
+
+On ALFWorld I measured training signal, not trained policies. Outcome-only credit separated the better action at 13.3% of states for Claude Haiku 4.5 (30% task success) and 3.4% for Qwen2.5-7B (16.7%). Branch-aware scoring separated 34.8% and 31.8%: 2.6x and 9.4x more. The weaker the model, the less outcome-only credit has to work with, because weak models rarely finish and the final score is mostly silence.
+
+## Rattling the handle
+
+I think about this outside of agents more than I expected to. Any group that only hands out credit when the project ships pays the person who reopened the same ticket ten times exactly what it pays the person who closed it. Rattling feels like effort from the inside and looks like effort from the outside. The fix for people is the same as the fix for agents: notice what each step changed, and say out loud when something was a stall.
+
+[Paper](https://github.com/jadenfix/CreditAssignment/blob/main/paper/main.pdf) and [code](https://github.com/jadenfix/CreditAssignment), open source, and it runs on GCP for under $5. There's an interactive version in the [research section](/#research) of the home page.

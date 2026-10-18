@@ -625,7 +625,7 @@ function Writing() {
       <SectionHead n="06" label="writing" title="Notes" />
       <div className="mt-12 md:grid md:grid-cols-12">
         <ul className="md:col-span-9 md:col-start-4">
-          {posts.map((p) => (
+          {posts.slice(0, 4).map((p) => (
             <Reveal as="li" key={p.slug} className="border-t border-line">
                 <a href={`#/blog/${p.slug}`} className="group grid gap-2 py-6 sm:grid-cols-[130px_1fr] sm:gap-8">
                   <span className="text-[12px] text-faint">{formatDate(p.date)}</span>
@@ -636,6 +636,13 @@ function Writing() {
                 </a>
             </Reveal>
           ))}
+          {posts.length > 4 && (
+            <li className="border-t border-line pt-6">
+              <a href="#/blog" className="link-u text-[13px] text-bone">
+                all {posts.length} notes →
+              </a>
+            </li>
+          )}
         </ul>
       </div>
     </section>
