@@ -213,6 +213,7 @@ export default function SimulationPage() {
             <Reveal className="mt-8 flex flex-wrap gap-2">
               <Chip name="repo" href={REPO} />
               <Chip name="claim ledger" href={`${REPO}/tree/main/claims`} />
+              <Chip name="paper sources" href={`${REPO}/tree/main/paper`} />
               <Chip name="why i got into this" href="#/blog/simulation-is-an-eval" />
             </Reveal>
           </div>
