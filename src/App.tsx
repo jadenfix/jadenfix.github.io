@@ -505,7 +505,7 @@ const projects: { id: string; name: string; tag: string; href: string; body: str
     name: 'DRL4MM',
     tag: 'reinforcement learning · python',
     href: 'https://github.com/jadenfix/DRL4MM',
-    body: 'A TD3 market maker, trained with the repo’s own code on a day of real LTC/USDT order flow, quoting live in your browser against a FIFO limit order book next to a fixed-midpoint baseline. It matches the Python simulator fill for fill. It does not beat the baseline yet, and the demo says so.',
+    body: 'A soft actor-critic market maker trained on about 84 days of real Binance order flow for BTC, ETH and LTC, then tested on held-out days and on SOL, which it never saw. Its quotes run live in your browser through a queue-position simulator that matches the Python one fill for fill. Honest result: it beats the old TD3 by a lot but does not beat a well-tuned fixed quote yet.',
     Comp: MarketMakerDemo,
     note: {
       how: 'toggle the trained TD3 policy vs fixed midpoint quotes, pause or step, move to the next slice.',

@@ -34,7 +34,17 @@ export interface Side {
 export interface InstrumentInfo {
   baseline: BaselineSpec & { label: string };
   files: { file: string; start_utc: string; week: string }[];
-  test: { episodes: number; days: number; agent: Side; baseline: Side; diff_mean: number; diff_ci95: CI; p_sign_flip: number; seen_in_training: boolean };
+  test: {
+    episodes: number;
+    days: number;
+    agent: Side;
+    baseline: Side;
+    diff_mean: number;
+    diff_ci95: CI;
+    p_sign_flip: number;
+    seen_in_training: boolean;
+    ex_post: { label: string; diff_mean: number; diff_ci95: CI; p_sign_flip: number };
+  };
 }
 export interface Index {
   source: string;

@@ -206,10 +206,19 @@ export default function MarketMakerDemo() {
           </div>
           <p className="mt-2 leading-[1.7] text-bone">
             agent − baseline: {signed(T.diff_mean)} USDT/h, 95% day-block bootstrap CI {ci(T.diff_ci95)}, sign-flip p = {T.p_sign_flip.toFixed(3)}: {verdict(T.diff_mean, T.diff_ci95, T.p_sign_flip)}.
+            {T.ex_post && (
+              <span className="text-dim">
+                {' '}
+                Against the baseline that did best on these test days ({T.ex_post.label}, picked with hindsight): {signed(T.ex_post.diff_mean)} USDT/h{' '}
+                {ci(T.ex_post.diff_ci95)}, p = {T.ex_post.p_sign_flip.toFixed(3)}.
+              </span>
+            )}
             {core && (
               <span className="text-dim">
                 {' '}
-                All four instruments pooled: {signed(core.index.pooled.vs.diff_mean)} USDT/h {ci(core.index.pooled.vs.diff_ci95)}, p = {core.index.pooled.vs.p_sign_flip.toFixed(3)}.
+                All four instruments pooled: the agent made {signed(core.index.pooled.agent.pnl_mean)} USDT/h {ci(core.index.pooled.agent.pnl_mean_ci)} against{' '}
+                {signed(core.index.pooled.best_baseline.pnl_mean)} {ci(core.index.pooled.best_baseline.pnl_mean_ci)} for the validation-chosen baselines; difference{' '}
+                {signed(core.index.pooled.vs.diff_mean)} {ci(core.index.pooled.vs.diff_ci95)}, p = {core.index.pooled.vs.p_sign_flip.toFixed(3)}, not significant.
               </span>
             )}
           </p>
@@ -218,12 +227,14 @@ export default function MarketMakerDemo() {
 
       <p className="mt-4 border-t border-line pt-3 text-[11px] leading-[1.8] text-faint">
         Recorded flow: Binance USD-M perpetuals (bookTicker and aggTrades from data.binance.vision, CC BY-NC-SA 4.0), a calm, a median and a volatile week of
-        2023–24; each week trains on days 1–4, validates on day 5 and tests on days 6–7. The agent is a seed ensemble of small actor networks (DRL4MM v2) that
-        sets a half-spread and a skew around the microprice once a second from order-flow, volatility and inventory features; it trained on BTC, ETH and LTC
-        only. The baseline is the one that did best on the validation days for this instrument, chosen from a tuned fixed half-spread, Avellaneda–Stoikov,
-        the repo&apos;s fixed-midpoint quotes and the previous TD3. Both quote ~1,000 USDT per side on the identical replay, in a TypeScript port of the
-        Python queue-position simulator that reproduces it fill for fill: 100 ms latency, our orders join the back of the queue, the market does not react
-        to us, inventory capped at five quotes and liquidated across the spread at the end. No fees; not evidence of live performance.
+        2023–24; each week trains on days 1–4, validates on day 5 and tests on days 6–7. The agent (DRL4MM v2) averages five SAC actor networks, one per
+        seed, each trained on BTC, ETH and LTC only with a reward that credits every fill with its 30 s markout; once a second it sets a half-spread and a
+        skew around the microprice from order-flow, volatility and inventory features. The baseline is whichever did best on this instrument&apos;s
+        validation days among a tuned fixed half-spread, Avellaneda–Stoikov, the repo&apos;s fixed-midpoint quotes and the previous TD3. Both quote about
+        1,000 USDT per side on the identical replay, in a TypeScript port of the Python queue-position simulator that reproduces it fill for fill: 100 ms
+        latency, our orders join the back of the queue, the market does not react to us, inventory is capped at five quotes and flattened across the
+        spread at the end. Under these fill rules quoting at the touch loses money for everyone, so both mostly wait several bps away for spikes. No
+        fees; not evidence of live performance.
       </p>
     </div>
   );

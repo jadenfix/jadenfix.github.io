@@ -153,7 +153,7 @@ const rows: Row[] = [
   { key: 'spacewind', n: '06', name: 'Spacewind', kind: 'physics', line: 'radiation belts, solar wind, black holes', href: '#spacewind' },
   { key: 'simulation', n: '07', name: 'simulation-theory', kind: 'theory', line: 'can you tell if a world is simulated?', href: '#simulation-theory' },
   { key: 'replay', n: '08', name: 'ReplayKit', kind: 'debugger', line: 'fork an agent run, replay downstream', href: '#replaykit' },
-  { key: 'mm', n: '09', name: 'DRL4MM', kind: 'reinforcement learning', line: 'a TD3 market maker on real order flow', href: '#drl4mm' },
+  { key: 'mm', n: '09', name: 'DRL4MM', kind: 'reinforcement learning', line: 'a market maker on real BTC, ETH, SOL, LTC flow', href: '#drl4mm' },
   { key: 'infty', n: '10', name: 'InftyThink', kind: 'reasoning', line: 'bounded-context reasoning, real traces', href: '#inftythink' },
 ];
 
