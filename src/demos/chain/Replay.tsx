@@ -281,7 +281,7 @@ export function Replay({ session, visible, reduce }: { session: Session; visible
           ] as const
         ).map(([k, v, c], i) => (
           <div key={k} className={`py-1 sm:py-2 ${i % 2 ? 'border-l border-line pl-3' : ''} ${i >= 2 ? 'border-t border-line sm:border-t-0' : ''} ${i === 2 ? 'sm:border-l sm:pl-3' : ''}`}>
-            <dt className="label truncate">{k}</dt>
+            <dt className="label sm:truncate">{k}</dt>
             <dd className="font-serif text-[19px] leading-tight tabular-nums sm:text-[22px]" style={{ color: c }}>
               {v}
             </dd>

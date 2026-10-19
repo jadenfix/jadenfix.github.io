@@ -295,7 +295,7 @@ function Stage({ proto, seedIdx, scorer, active, paused, reduced, w, p }: StageP
             <span className={`min-w-0 flex-1 truncate ${log.stuck ? 'text-[#ec5c52]/80' : 'text-dim'}`}>{log.obs}</span>
           </>
         ) : (
-          <span className="min-w-0 flex-1 truncate text-faint">
+          <span className="min-w-0 flex-1 text-faint max-sm:line-clamp-2 max-sm:leading-tight sm:truncate">
             {reduced
               ? 'reduced motion: showing the settled result after 50 rollouts'
               : mode === 'collect'

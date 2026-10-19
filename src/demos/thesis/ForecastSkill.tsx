@@ -204,8 +204,8 @@ export default function ForecastSkill() {
           <button
             key={m.key}
             type="button"
-            onPointerEnter={() => setFocus(m.key)}
-            onPointerLeave={() => setFocus(null)}
+            onPointerEnter={(e) => e.pointerType === 'mouse' && setFocus(m.key)}
+            onPointerLeave={(e) => e.pointerType === 'mouse' && setFocus(null)}
             onFocus={() => setFocus(m.key)}
             onBlur={() => setFocus(null)}
             className={`inline-flex items-center gap-2 transition-opacity ${focus && focus !== m.key ? 'opacity-40' : 'opacity-100'}`}
@@ -226,7 +226,7 @@ export default function ForecastSkill() {
 
       <div ref={boxRef} className="relative mt-3 h-[280px] w-full sm:h-[330px]">
         {data && w > 0 && (
-          <svg width={w} height={h} className="absolute inset-0 block touch-none" onPointerMove={onMove} onPointerDown={onMove} onPointerLeave={() => setHover(null)} role="img" aria-label="Brier skill by forecast horizon for each model">
+          <svg width={w} height={h} className="absolute inset-0 block touch-pan-y" onPointerMove={onMove} onPointerDown={onMove} onPointerLeave={(e) => e.pointerType === 'mouse' && setHover(null)} role="img" aria-label="Brier skill by forecast horizon for each model">
             {ticks.map((t) => (
               <g key={t}>
                 <line x1={M.l} x2={w - M.r} y1={y(t)} y2={y(t)} stroke={C.line} strokeWidth={t === 0 ? 0 : 0.6} strokeDasharray="2 4" />
@@ -296,7 +296,7 @@ export default function ForecastSkill() {
             const pp = m.pPersist[hi];
             return (
               <div key={m.key} className="flex items-baseline justify-between gap-3 tabular-nums">
-                <span className="truncate text-dim">{SHORT[m.key]}</span>
+                <span className="text-dim sm:truncate">{SHORT[m.key]}</span>
                 <span className="shrink-0">
                   <span style={{ color: STYLE[m.key].color }}>{signed(v)}%</span>
                   {!robust && (

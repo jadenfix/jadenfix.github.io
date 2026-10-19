@@ -181,10 +181,10 @@ export default function CommandBar() {
                     <button
                       onMouseEnter={() => setSel(i)}
                       onClick={() => exec(c)}
-                      className={`flex w-full items-baseline justify-between px-4 py-2 text-left text-[13px] ${i === sel ? 'bg-void text-phos' : 'text-bone'}`}
+                      className={`flex w-full items-baseline justify-between gap-4 px-4 py-2 text-left text-[13px] ${i === sel ? 'bg-void text-phos' : 'text-bone'}`}
                     >
                       <span>{c.name}</span>
-                      <span className="text-[11px] text-faint">{c.hint}</span>
+                      <span className="text-right text-[11px] text-faint">{c.hint}</span>
                     </button>
                   </li>
                 ))}

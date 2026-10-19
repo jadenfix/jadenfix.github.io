@@ -192,3 +192,13 @@ html.custom-cursor input[type='range'] { cursor: none !important; }
 .cursor-ring[data-hot='1'] > span { border-color: rgb(var(--c-phos) / 0.9); border-radius: 0; width: 7px; top: -2px; bottom: -2px; }
 .cursor-ring[data-hot='1'] > span:first-child { left: -8px; }
 .cursor-ring[data-hot='1'] > span:last-child { right: -8px; }
+
+/* touch screens: every control gets a finger-sized target (about 40px); nothing changes with a mouse */
+@media (pointer: coarse) {
+  /* (the benchmark grid's cells stay square: the grid is the figure, arrow keys move through it) */
+  button:not(.aspect-square), select, a.chip, header a, [role='radio'], [role='tab'], input[type='range'] { min-height: 40px; }
+  /* the header's small controls keep their size and reach a little past their edges instead */
+  header button:not(.aspect-square) { position: relative; min-height: 0; }
+  header button::before { content: ''; position: absolute; inset: -10px; }
+  #contact a { display: inline-block; padding-block: 11px; }
+}

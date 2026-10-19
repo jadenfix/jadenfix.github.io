@@ -173,7 +173,7 @@ export default function MarketMakerDemo() {
           ] as [string, string, boolean][]
         ).map(([k, v, accent], i) => (
           <div key={k} className={`min-w-0 px-3 py-2 ${i % 2 === 1 ? 'border-l border-line' : ''} ${i >= 2 ? 'border-t border-line sm:border-t-0' : ''} ${i === 2 ? 'sm:border-l' : ''}`}>
-            <dt className="truncate text-[10px] lowercase tracking-[0.12em] text-dim">{k}</dt>
+            <dt className="text-[10px] lowercase tracking-[0.12em] text-dim sm:truncate">{k}</dt>
             <dd className={`mt-1 truncate font-serif text-[18px] leading-none tabular-nums ${accent ? 'text-phos' : 'text-ice'}`}>{v}</dd>
           </div>
         ))}

@@ -13,7 +13,7 @@ export default function Readouts({ items }: { items: Readout[] }) {
         >
           <dt className="text-[10px] lowercase tracking-[0.14em] text-dim">{r.k}</dt>
           <dd className={`mt-1 truncate font-serif text-[24px] leading-none tabular-nums sm:text-[26px] ${r.hot ? 'text-phos' : 'text-bone'}`}>{r.v}</dd>
-          <dd className="mt-1 truncate text-[10px] text-faint">{r.sub}</dd>
+          <dd className="mt-1 text-[10px] text-faint sm:truncate">{r.sub}</dd>
         </div>
       ))}
     </dl>
