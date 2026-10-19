@@ -1,8 +1,12 @@
-import { Fragment, type ReactNode } from 'react';
+import { Fragment, Suspense, type ComponentType, type ReactNode } from 'react';
+import { DemoNote } from './ui';
 
 // Renders the Markdown subset the notes and paper pages use: headings,
 // paragraphs, emphasis, code, links, lists, quotes, tables and images. No HTML
-// passes through.
+// passes through. A line `::demo[folder/Name]` places a live demo from
+// src/demos, framed like every other demo on the site; optional `how:` and
+// `reveals:` lines right after it become its demo note. A name that isn't in
+// `demos` renders nothing.
 
 function inline(text: string, key = 0): ReactNode[] {
   const out: ReactNode[] = [];
@@ -29,7 +33,7 @@ function inline(text: string, key = 0): ReactNode[] {
   return out;
 }
 
-export function Markdown({ source, compact = false }: { source: string; compact?: boolean }) {
+export function Markdown({ source, compact = false, demos }: { source: string; compact?: boolean; demos?: Record<string, ComponentType> }) {
   const blocks: ReactNode[] = [];
   const lines = source.replace(/\r/g, '').split('\n');
   const p = compact ? 'text-[14px] leading-[1.9] text-dim' : 'text-[14.5px] leading-[1.95] text-dim';
@@ -51,6 +55,30 @@ export function Markdown({ source, compact = false }: { source: string; compact?
           {buf.join('\n')}
         </pre>,
       );
+      continue;
+    }
+    const dm = line.match(/^::demo\[([^\]]+)\]\s*$/);
+    if (dm) {
+      i++;
+      const note: Record<string, string> = {};
+      while (i < lines.length) {
+        const m = lines[i].match(/^(how|reveals):\s*(.+)$/);
+        if (!m) break;
+        note[m[1]] = m[2];
+        i++;
+      }
+      const Comp = Object.hasOwn(demos ?? {}, dm[1]) ? demos![dm[1]] : undefined;
+      if (Comp)
+        blocks.push(
+          <div key={k++}>
+            {note.how && note.reveals && <DemoNote how={note.how} reveals={note.reveals} />}
+            <div className="screen">
+              <Suspense fallback={<div className="flex h-[320px] items-center justify-center text-[11px] text-faint">loading…</div>}>
+                <Comp />
+              </Suspense>
+            </div>
+          </div>,
+        );
       continue;
     }
     if (line.startsWith('## ')) {
@@ -128,7 +156,7 @@ export function Markdown({ source, compact = false }: { source: string; compact?
       continue;
     }
     const buf: string[] = [];
-    while (i < lines.length && lines[i].trim() && !/^(## |```|> |- |!\[|\|)/.test(lines[i])) buf.push(lines[i++]);
+    while (i < lines.length && lines[i].trim() && !/^(## |```|> |- |!\[|\||::)/.test(lines[i])) buf.push(lines[i++]);
     blocks.push(
       <p key={k++} className={p}>
         {buf.map((b, j) => (

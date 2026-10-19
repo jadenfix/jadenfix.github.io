@@ -28,6 +28,12 @@ const demo = (name: string): Lazy => {
   const load = demoModules[`./demos/${name}.tsx`];
   return lazy(load ?? (() => Promise.resolve({ default: Missing })));
 };
+// demos that notes place inline with a `::demo[folder/Name]` line
+const postDemos: Record<string, Lazy> = Object.fromEntries(
+  [...new Set(posts.flatMap((p) => [...p.body.matchAll(/^::demo\[([^\]]+)\]/gm)].map((m) => m[1])))]
+    .filter((name) => `./demos/${name}.tsx` in demoModules)
+    .map((name) => [name, demo(name)]),
+);
 const CreditSim = demo('CreditSim');
 const RegimeExplorer = demo('RegimeExplorer');
 const RegimeDensities = demo('thesis/RegimeDensities');
@@ -877,7 +883,9 @@ function PostView({ post }: { post: Doc }) {
           {formatDate(post.date)} {post.read && <>· {post.read}</>}
         </Reveal>
         <Reveal key={post.slug} delay={0.55} className="mt-12">
-          <Markdown source={post.body} />
+          <Suspense fallback={null}>
+            <Markdown source={post.body} demos={postDemos} />
+          </Suspense>
         </Reveal>
         {posts.length > 1 && (
           <a href={`#/blog/${next.slug}`} className="group mt-20 block border-t border-line pt-6">

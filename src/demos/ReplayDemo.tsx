@@ -257,7 +257,7 @@ function Demo({ data, visible, reduce }: { data: ReplayData; visible: boolean; r
           <Label>real forks</Label>
           <div className="mt-2 grid gap-1 text-[12px]">
             {forks.map((f) => (
-              <button key={f.id} type="button" onClick={() => select(f.fork)} className={`${BTN} truncate text-dim hover:text-phos`}>
+              <button key={f.id} type="button" onClick={() => select(f.fork)} className={`${BTN} text-dim hover:text-phos max-sm:whitespace-normal sm:truncate`}>
                 [ fork step {byId.get(f.fork)!.seq} ] <span className="text-faint">{f.title}</span>
               </button>
             ))}

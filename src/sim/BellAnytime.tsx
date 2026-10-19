@@ -80,8 +80,9 @@ export default function BellAnytime({ delft }: { delft: Delft }) {
           <text x={x(N)} y={y(25.5) + 4} textAnchor="middle" fontSize="12" fill="rgb(var(--c-dim))">
             ×
           </text>
-          <text x={x(N) - 10} y={y(25.5) + 4} textAnchor="end" fontSize="10" fill="rgb(var(--c-dim))">
-            1/p = 25.5, if n were fixed in advance
+          {/* on a phone the note sits above the mark, clear of the bar's label */}
+          <text x={x(N) - (narrow ? 0 : 10)} y={narrow ? y(25.5) - 10 : y(25.5) + 4} textAnchor="end" fontSize="10" fill="rgb(var(--c-dim))">
+            {narrow ? '1/p = 25.5 at a fixed n' : '1/p = 25.5, if n were fixed in advance'}
           </text>
         </g>
         <path d={ceil} fill="none" stroke="rgb(var(--c-ice) / 0.7)" strokeWidth={1} strokeDasharray="3 3" />
@@ -102,7 +103,7 @@ export default function BellAnytime({ delft }: { delft: Delft }) {
         )}
         {[0, 50, 100, 150, 200, 245].map((k) => (
           <text key={k} x={x(k)} y={H - 10} textAnchor={k === 0 ? 'start' : k === N ? 'end' : 'middle'} fontSize="10" fill="rgb(var(--c-faint))">
-            {k ? k : '0 trials'}
+            {k ? k : narrow ? '0' : '0 trials'}
           </text>
         ))}
       </svg>

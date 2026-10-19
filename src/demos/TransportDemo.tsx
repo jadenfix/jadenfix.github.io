@@ -332,7 +332,7 @@ export default function TransportDemo() {
           >
             <dt className="text-[10px] lowercase tracking-[0.14em] text-dim">{key}</dt>
             <dd className={`mt-1 font-serif text-[26px] leading-none tabular-nums ${hot ? 'text-phos' : 'text-bone'}`}>{v}</dd>
-            <dd className="mt-1 truncate text-[10px] text-faint" title={sub}>
+            <dd className="mt-1 text-[10px] text-faint sm:truncate" title={sub}>
               {sub}
             </dd>
           </div>

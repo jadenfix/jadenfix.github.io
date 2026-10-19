@@ -37,9 +37,10 @@ export default function ChainDemo() {
 
   return (
     <div ref={wrapRef} className="font-mono text-bone" style={{ opacity: seen ? 1 : 0, transition: reduce ? undefined : 'opacity 1s ease' }}>
-      <div className="flex flex-col overflow-hidden border border-line bg-panel p-3 sm:p-4" style={{ height: CHAIN_DEMO_HEIGHT }}>
+      {/* a fixed frame from sm up (620px, CHAIN_DEMO_HEIGHT); on a phone the controls wrap, so it may grow */}
+      <div className="flex flex-col overflow-hidden border border-line bg-panel p-3 sm:h-[620px] sm:p-4" style={{ minHeight: CHAIN_DEMO_HEIGHT }}>
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <div className="flex gap-3 text-[11.5px]" role="tablist" aria-label="view">
+          <div className="flex flex-wrap gap-x-3 text-[11.5px]" role="tablist" aria-label="view">
             {(['replay', 'compare'] as const).map((k) => (
               <button
                 key={k}

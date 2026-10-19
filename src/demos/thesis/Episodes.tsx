@@ -134,11 +134,11 @@ export default function Episodes() {
           <svg
             width={w}
             height={h}
-            className="absolute inset-0 block touch-none outline-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-phos"
+            className="absolute inset-0 block touch-pan-y outline-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-phos"
             tabIndex={0}
             onPointerMove={onMove}
             onPointerDown={onMove}
-            onPointerLeave={() => setSel(null)}
+            onPointerLeave={(e) => e.pointerType === 'mouse' && setSel(null)}
             onKeyDown={onKey}
             role="img"
             aria-label="Drawdown of each bear market from its peak. Use the arrow keys to step through episodes."
