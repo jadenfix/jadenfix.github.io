@@ -7,7 +7,7 @@ read: 6 min
 
 In [Ks all the way down](#/blog/ks-all-the-way-down), I wrote about how early opportunities compound. The practical question is what to do about your next one. If you're in college in the US, especially outside computer science, here's the advice I'd give from my path through quantitative economics and engineering.
 
-Find work you could become unusually useful at. Then build evidence that you can do it.
+Start with a problem your major has taught you to question well. Then learn enough engineering to build something useful around it.
 
 ## Find the work inside your major
 
@@ -17,11 +17,11 @@ For me, quantitative economics meant proofs, A/B testing and understanding proce
 
 Physics might lead you toward simulation; electrical engineering toward chips or performance. Philosophy might lead you toward qualitative evaluations: defining a good answer, finding contradictions and examining disagreements. That still requires clear rubrics and evidence.
 
-Your taste becomes useful when you can explain what you notice and turn it into a better result.
+For qualitative evals, show two plausible answers, the distinction your rubric catches and why that distinction matters to the user.
 
 ## Check that someone needs it
 
-Read current openings, inspect what teams ship and ask practitioners what slows them down. Popularity is a clue; repeated problems and hiring are stronger evidence. Read the responsibilities behind each title.
+Read current openings and write down the deliverables that keep appearing: a customer integration, a grader, a reliable job runner. Ask people doing the work which part is still painful. That gives you a project to build and a reason someone might care about it.
 
 | If you enjoy | Work to investigate |
 |---|---|
@@ -37,6 +37,8 @@ A data science degree doesn't limit you to jobs called data scientist. Customer-
 ## Practice finishing
 
 Practice in focused three-to-five-hour sessions, at school, with a friend or at a hackathon. Use a coding agent to plan, build and verify one complete path. Finish each session with something another person can run and you can explain. Larger projects should span several sessions.
+
+Have a friend run it from the README, then ask them to change one requirement. See whether you can explain which parts need to change and why. A polished demo can hide a lot of missing understanding.
 
 Here is a progression I'd recommend.
 
